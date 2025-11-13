@@ -1,0 +1,32 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "baseBuilder": {
+    "ownerAddress": "0x"
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Lighter OI Prediction",
+    "homeUrl": "http://localhost:5173",
+    "iconUrl": "http://localhost:5173/icon.png",
+    "splashImageUrl": "http://localhost:5173/splash.png",
+    "splashBackgroundColor": "#1a1a2e",
+    "webhookUrl": "http://localhost:5173/api/webhook",
+    "subtitle": "Predict perpetual DEX Open Interest",
+    "description": "Guess today's Lighter perps Open Interest, powered by DeFiLlama. Compete on the leaderboard!",
+    "screenshotUrls": [
+      "http://localhost:5173/screenshot1.png"
+    ],
+    "primaryCategory": "social",
+    "tags": ["defi", "trading", "game", "lighter"],
+    "heroImageUrl": "http://localhost:5173/hero.png",
+    "tagline": "Predict & Win",
+    "ogTitle": "Lighter OI Prediction",
+    "ogDescription": "Guess today's Lighter perps Open Interest, powered by DeFiLlama.",
+    "ogImageUrl": "http://localhost:5173/og.png",
+    "noindex": true
+  }
+}
