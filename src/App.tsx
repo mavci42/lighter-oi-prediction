@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { fetchLighterOI } from "./lib/fetchLighterOI";
+//import { fetchLighterOI } from "./lib/fetchLighterOI";
 import PredictionForm from "./components/PredictionForm";
 import Leaderboard from "./components/Leaderboard";
 import { isFarcasterEnvironment } from "./lib/wallet";
