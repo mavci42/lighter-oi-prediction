@@ -11,7 +11,10 @@ const RATE = new Map<string, number>(); // ip -> lastEpochMs
 const app = express();
 app.use(cors());
 app.use(express.json());
-const PORT = 3001;
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true });
+});
 
 app.get("/api/rounds/current", (_req,res)=>{
   const r = get("SELECT * FROM rounds WHERE status='open' ORDER BY id DESC LIMIT 1");
@@ -115,8 +118,11 @@ app.post("/api/admin/set-oi", (req,res)=>{
 });
 
 await initDB();
-app.listen(PORT, ()=> {
-  console.log("API on http://localhost:"+PORT);
+
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`API on http://localhost:${PORT}`);
   startScheduler();
   // warm the cache once at boot
   warmupOI();
