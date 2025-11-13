@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, ts: Date.now() });
 });
 
 app.get("/api/rounds/current", (_req,res)=>{
@@ -51,15 +51,21 @@ app.get("/api/predictions", (_req,res)=>{
 });
 
 app.get("/api/leaderboard", (_req,res)=>{
-  const scored = get("SELECT * FROM rounds WHERE status='scored' ORDER BY id DESC LIMIT 1");
-  if(scored){
-    const rows = all("SELECT user,diff,rank FROM scores WHERE round_id=? ORDER BY rank ASC", [scored.id]);
-    return res.json({ roundId: scored.id, status:'scored', actual: scored.actual_oi, items: rows });
+  try {
+    const scored = get("SELECT * FROM rounds WHERE status='scored' ORDER BY id DESC LIMIT 1");
+    if(scored){
+      const rows = all("SELECT user,diff,rank FROM scores WHERE round_id=? ORDER BY rank ASC", [scored.id]);
+      return res.json({ roundId: scored.id, status:'scored', actual: scored.actual_oi, items: Array.isArray(rows) ? rows : [] });
+    }
+    const current = get("SELECT * FROM rounds WHERE status='open' ORDER BY id DESC LIMIT 1");
+    if(!current) return res.json({ items: [] });
+    const preds = all("SELECT user,value FROM predictions WHERE round_id=?", [current.id]);
+    return res.json({ roundId: current.id, status:'open', items: Array.isArray(preds) ? preds : [] });
+  } catch (err) {
+    console.error("[LEADERBOARD] error:", err);
+    // On any error, still return 200 with empty array so frontend never breaks
+    res.json({ items: [] });
   }
-  const current = get("SELECT * FROM rounds WHERE status='open' ORDER BY id DESC LIMIT 1");
-  if(!current) return res.json({ items: [] });
-  const preds = all("SELECT user,value FROM predictions WHERE round_id=?", [current.id]);
-  return res.json({ roundId: current.id, status:'open', items: preds });
 });
 
 app.get("/api/oi", async (_req,res)=>{
