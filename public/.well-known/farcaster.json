@@ -11,8 +11,8 @@
     "version": "1",
     "name": "Lighter OI Prediction",
     "homeUrl": "https://lighter-oi-prediction.vercel.app",
-    "iconUrl": "https://lighter-oi-prediction.vercel.app/icon-1024.png",
-    "splashImageUrl": "https://lighter-oi-prediction.vercel.app/splash-200.png",
+    "iconUrl": "https://lighter-oi-prediction.vercel.app/lighter-oi-cover.png",
+    "splashImageUrl": "https://lighter-oi-prediction.vercel.app/lighter-oi-cover.png",
     "splashBackgroundColor": "#050716",
     "primaryCategory": "finance",
     "description": "Daily Lighter perp DEX open interest prediction game."
