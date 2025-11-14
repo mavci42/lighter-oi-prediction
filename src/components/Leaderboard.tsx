@@ -16,24 +16,35 @@ export default function Leaderboard(){
         setData(response);
         setErr(null);
         
-        // Normalize data for grouping
+        // Normalize data for grouping - ONLY show on-chain predictions
         if (response?.items && Array.isArray(response.items)) {
-          const normalized: LeaderboardPrediction[] = response.items.map((p: any, idx: number) => ({
-            id: p.id ?? p.txHash ?? `${p.user}-${p.createdAt ?? idx}`,
-            user: {
-              username: p.user ?? p.username,
-              displayName: p.displayName,
-              avatarUrl: p.avatarUrl,
-            },
-            address: p.address,
-            createdAt: p.createdAt ?? new Date().toISOString(),
-            round: p.round ?? p.roundNumber ?? p.roundIndex,
-            pnl: p.pnl ?? p.profit ?? p.returnPct,
-            score: p.score,
-            value: p.value,
-            diff: p.diff,
-            rank: p.rank,
-          }));
+          const normalized: LeaderboardPrediction[] = response.items
+            .filter((p: any) => {
+              // Only include predictions with on-chain transaction hash
+              const tx =
+                p.txHash ||
+                p.transactionHash ||
+                p.onchainTxHash ||
+                p.tx_hash ||
+                p.hash;
+              return !!tx; // Filter out off-chain/dummy predictions
+            })
+            .map((p: any, idx: number) => ({
+              id: p.id ?? p.txHash ?? p.transactionHash ?? p.onchainTxHash ?? `${p.user}-${p.createdAt ?? idx}`,
+              user: {
+                username: p.user ?? p.username,
+                displayName: p.displayName,
+                avatarUrl: p.avatarUrl,
+              },
+              address: p.address,
+              createdAt: p.createdAt ?? new Date().toISOString(),
+              round: p.round ?? p.roundNumber ?? p.roundIndex,
+              pnl: p.pnl ?? p.profit ?? p.returnPct,
+              score: p.score,
+              value: p.value,
+              diff: p.diff,
+              rank: p.rank,
+            }));
           setAllPredictions(normalized);
         }
       } catch (e: any) {
