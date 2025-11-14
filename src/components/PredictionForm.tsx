@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { connectWallet, shortenAddress } from "../lib/wallet";
-import { submitPredictionOnchain, type Direction } from "../onchain/predictionContract";
+import { useAccount, useConnect, useWriteContract } from "wagmi";
+import { predictionAbi, PREDICTION_CONTRACT_ADDRESS, type Direction } from "../onchain/predictionContract";
 
 export default function PredictionForm({
   oi,
@@ -9,22 +9,30 @@ export default function PredictionForm({
   oi: number | null;
   onSuccess?: () => void;
 }) {
-  const [address, setAddress] = useState<string | null>(null);
+  const { address, isConnected } = useAccount();
+  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
+  const { writeContractAsync, isPending: isWriting } = useWriteContract();
+  
   const [value, setValue] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [connecting, setConnecting] = useState(false);
   const [msg, setMsg] = useState<string|null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  
+  const loading = isWriting;
 
   async function handleConnectWallet() {
-    setConnecting(true);
     try {
-      const { address: addr } = await connectWallet();
-      setAddress(addr);
+      const farcasterConnector = connectors.find(
+        (c) => c.id === "farcasterMiniApp" || c.name.toLowerCase().includes("farcaster")
+      ) ?? connectors[0];
+      
+      if (!farcasterConnector) {
+        setMsg("⚠️ No wallet connector available. Please open inside Farcaster/Base.");
+        return;
+      }
+      
+      await connectAsync({ connector: farcasterConnector });
     } catch (err: any) {
-      alert(err?.message || "Failed to connect wallet");
-    } finally {
-      setConnecting(false);
+      setMsg(err?.message || "Failed to connect wallet");
     }
   }
 
@@ -36,26 +44,50 @@ export default function PredictionForm({
       return;
     }
     
-    setLoading(true);
     setMsg("Submitting on-chain prediction...");
     setTxHash(null);
     
     try {
+      // Ensure wallet is connected
+      let currentAddress = address;
+      if (!currentAddress) {
+        const farcasterConnector = connectors.find(
+          (c) => c.id === "farcasterMiniApp" || c.name.toLowerCase().includes("farcaster")
+        ) ?? connectors[0];
+        
+        if (!farcasterConnector) {
+          setMsg("⚠️ This miniapp only works inside Farcaster/Base wallet.");
+          return;
+        }
+        
+        const result = await connectAsync({ connector: farcasterConnector });
+        currentAddress = result.accounts[0];
+      }
+      
+      if (!PREDICTION_CONTRACT_ADDRESS || PREDICTION_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
+        setMsg("⚠️ Contract not configured. Please contact the administrator.");
+        return;
+      }
+      
       const predictionValue = parseFloat(value);
       
       // Convert prediction value to on-chain format
-      // marketId: 0 for now (can be dynamic later)
-      // strikePrice: prediction value (no scaling for now)
-      // direction: 1 (long) - assuming bullish prediction
       const marketId = BigInt(0);
       const strikePrice = BigInt(Math.round(predictionValue));
       const direction: Direction = 1; // 1 = long (bullish)
       
-      console.log("[PREDICT] Submitting on-chain transaction...");
-      const hash = await submitPredictionOnchain({
-        marketId,
-        strikePrice,
+      console.log("[PREDICT] Submitting on-chain transaction...", {
+        marketId: marketId.toString(),
+        strikePrice: strikePrice.toString(),
         direction,
+        contract: PREDICTION_CONTRACT_ADDRESS,
+      });
+      
+      const hash = await writeContractAsync({
+        address: PREDICTION_CONTRACT_ADDRESS,
+        abi: predictionAbi,
+        functionName: "submitPrediction",
+        args: [marketId, strikePrice, direction],
       });
       
       setTxHash(hash);
@@ -69,17 +101,13 @@ export default function PredictionForm({
       
       const errMsg = String(err?.message || "");
       
-      if (errMsg.includes("Ethereum provider not found")) {
-        setMsg("⚠️ This miniapp only works inside Farcaster/Base wallet with a connected account.");
-      } else if (errMsg.toLowerCase().includes("user rejected") || errMsg.includes("User denied")) {
+      if (errMsg.toLowerCase().includes("user rejected") || errMsg.includes("User denied")) {
         setMsg("Transaction cancelled by user.");
-      } else if (errMsg.includes("Missing VITE_PREDICTION_CONTRACT")) {
-        setMsg("⚠️ Contract not configured. Please contact the administrator.");
+      } else if (errMsg.includes("connector") || errMsg.includes("provider")) {
+        setMsg("⚠️ This miniapp only works inside Farcaster/Base wallet with a connected account.");
       } else {
         setMsg(err?.message || "On-chain prediction failed.");
       }
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -95,12 +123,12 @@ export default function PredictionForm({
       <button
         type="button"
         onClick={handleConnectWallet}
-        disabled={connecting}
+        disabled={isConnecting || isConnected}
         className="wallet-btn"
       >
-        {address
-          ? `Connected: ${shortenAddress(address)}`
-          : connecting
+        {isConnected && address
+          ? `Connected: ${address.slice(0, 6)}...${address.slice(-4)}`
+          : isConnecting
           ? "Connecting..."
           : "Connect Wallet"}
       </button>
