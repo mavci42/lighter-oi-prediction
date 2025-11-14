@@ -1,59 +1,53 @@
 import { sdk } from "@farcaster/miniapp-sdk";
 
-type EthProvider = {
-  request: (args: { method: string; params?: any[] }) => Promise<any>;
+type ConnectedWallet = {
+  address: string;
+  source: "farcaster" | "external";
 };
 
-function getFarcasterEthProvider(): EthProvider | null {
+export async function connectWallet(): Promise<ConnectedWallet> {
+  // 1) Try Farcaster miniapp wallet first
   try {
-    const p = (sdk as any)?.wallet?.getEthereumProvider?.();
-    if (p && typeof p.request === "function") return p as EthProvider;
-  } catch {
-    // ignore, fall back to window.ethereum
+    const provider = await sdk.wallet.getEthereumProvider();
+    if (provider) {
+      const accounts = (await provider.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      const address = accounts[0];
+      if (address) {
+        console.log("[wallet] connected via Farcaster miniapp:", address);
+        return { address, source: "farcaster" };
+      }
+    }
+  } catch (err) {
+    console.warn("[wallet] Farcaster provider failed, will try external:", err);
   }
-  return null;
-}
 
-function getWindowEthProvider(): EthProvider | null {
-  const eth = (window as any).ethereum;
-  if (eth && typeof eth.request === "function") return eth as EthProvider;
-  return null;
-}
-
-async function getEthereumProvider(): Promise<EthProvider> {
-  // 1) prefer Farcaster miniapp provider
-  const farcaster = getFarcasterEthProvider();
-  if (farcaster) return farcaster;
-
-  // 2) fallback: window.ethereum (for local dev outside Farcaster)
-  const win = getWindowEthProvider();
-  if (win) return win;
-
-  throw new Error("No Ethereum provider available (Farcaster or window.ethereum).");
-}
-
-export async function connectWallet(): Promise<string> {
-  const provider = await getEthereumProvider();
-  const accounts = await provider.request({ method: "eth_requestAccounts" });
-  if (!accounts || !accounts.length) {
-    throw new Error("No account returned from provider.");
+  // 2) Fallback: window.ethereum (browser / desktop dev)
+  const anyWindow = window as any;
+  const eth = anyWindow.ethereum;
+  if (!eth) {
+    throw new Error("No wallet provider found (Farcaster or external).");
   }
-  const addr = accounts[0];
-  if (typeof addr !== "string") {
-    throw new Error("Invalid account type from provider.");
-  }
-  return addr;
+
+  const accounts = (await eth.request({
+    method: "eth_requestAccounts",
+  })) as string[];
+  const address = accounts[0];
+  console.log("[wallet] connected via external provider:", address);
+  return { address, source: "external" };
 }
 
-export function shortenAddress(addr: string): string {
-  if (!addr || addr.length < 10) return addr;
+export function shortenAddress(addr?: string | null): string {
+  if (!addr) return "";
   return addr.slice(0, 6) + "..." + addr.slice(-4);
 }
 
 export function isFarcasterEnvironment(): boolean {
   try {
-    const p = (sdk as any)?.wallet?.getEthereumProvider?.();
-    return !!p;
+    // Check if Farcaster SDK is available by checking for the sdk object
+    // This is a synchronous check that doesn't require async context
+    return typeof sdk !== 'undefined' && typeof sdk.wallet !== 'undefined';
   } catch {
     return false;
   }

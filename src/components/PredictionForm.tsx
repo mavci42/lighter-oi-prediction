@@ -19,7 +19,7 @@ export default function PredictionForm({
   async function handleConnectWallet() {
     setConnecting(true);
     try {
-      const addr = await connectWallet();
+      const { address: addr } = await connectWallet();
       setAddress(addr);
     } catch (err: any) {
       alert(err?.message || "Failed to connect wallet");
