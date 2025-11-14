@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { apiPost } from "../lib/api";
 import { connectWallet, shortenAddress } from "../lib/wallet";
 import { submitPredictionOnchain, type Direction } from "../onchain/predictionContract";
 
@@ -10,7 +9,6 @@ export default function PredictionForm({
   oi: number | null;
   onSuccess?: () => void;
 }) {
-  const [user, setUser] = useState("");
   const [address, setAddress] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,68 +30,53 @@ export default function PredictionForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const identifier = address || user;
-    if (!identifier || !value) return;
+    
+    if (!value) {
+      setMsg("Please enter a prediction value");
+      return;
+    }
     
     setLoading(true);
-    setMsg(null);
+    setMsg("Submitting on-chain prediction...");
     setTxHash(null);
     
     try {
-      // Step 1: Submit on-chain transaction (if wallet is connected)
-      if (address) {
-        const predictionValue = parseFloat(value);
-        
-        // Convert prediction value to on-chain format
-        // marketId: 0 for now (can be dynamic later)
-        // strikePrice: prediction value scaled to 8 decimals
-        // direction: 1 (long) - assuming bullish prediction
-        const marketId = BigInt(0);
-        const strikePrice = BigInt(Math.round(predictionValue));
-        const direction: Direction = 1; // 1 = long (bullish)
-        
-        console.log("[PREDICT] Submitting on-chain transaction...");
-        const hash = await submitPredictionOnchain({
-          marketId,
-          strikePrice,
-          direction,
-        });
-        
-        setTxHash(hash);
-        console.log("[PREDICT] On-chain tx successful:", hash);
-      }
+      const predictionValue = parseFloat(value);
       
-      // Step 2: Submit to off-chain backend (for leaderboard)
-      await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
+      // Convert prediction value to on-chain format
+      // marketId: 0 for now (can be dynamic later)
+      // strikePrice: prediction value (no scaling for now)
+      // direction: 1 (long) - assuming bullish prediction
+      const marketId = BigInt(0);
+      const strikePrice = BigInt(Math.round(predictionValue));
+      const direction: Direction = 1; // 1 = long (bullish)
       
-      setMsg("Prediction submitted ✅" + (txHash ? " (on-chain)" : ""));
+      console.log("[PREDICT] Submitting on-chain transaction...");
+      const hash = await submitPredictionOnchain({
+        marketId,
+        strikePrice,
+        direction,
+      });
+      
+      setTxHash(hash);
+      setMsg("✅ On-chain prediction submitted!");
       setValue("");
+      console.log("[PREDICT] On-chain tx successful:", hash);
+      
       if (onSuccess) onSuccess();
-    } catch (err:any) {
+    } catch (err: any) {
       console.error("[PREDICT] Error:", err);
       
-      if (err?.message?.includes("user rejected") || err?.message?.includes("User denied")) {
-        setMsg("Transaction cancelled by user");
-      } else if (err?.message?.includes("No Ethereum provider found")) {
-        setMsg("⚠️ Please open this miniapp inside Farcaster/Base wallet.");
-        // Try to save off-chain as fallback
-        try {
-          await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
-          setMsg("Prediction saved (off-chain only - open in Farcaster for on-chain)");
-          setValue("");
-          if (onSuccess) onSuccess();
-        } catch {}
-      } else if (err?.message?.includes("Missing VITE_PREDICTION_CONTRACT")) {
-        setMsg("⚠️ Contract not configured. Saving prediction off-chain only.");
-        // Try to save off-chain even if on-chain fails
-        try {
-          await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
-          setMsg("Prediction saved (off-chain only)");
-          setValue("");
-          if (onSuccess) onSuccess();
-        } catch {}
+      const errMsg = String(err?.message || "");
+      
+      if (errMsg.includes("Ethereum provider not found")) {
+        setMsg("⚠️ This miniapp only works inside Farcaster/Base wallet with a connected account.");
+      } else if (errMsg.toLowerCase().includes("user rejected") || errMsg.includes("User denied")) {
+        setMsg("Transaction cancelled by user.");
+      } else if (errMsg.includes("Missing VITE_PREDICTION_CONTRACT")) {
+        setMsg("⚠️ Contract not configured. Please contact the administrator.");
       } else {
-        setMsg(err?.message || "Submit failed");
+        setMsg(err?.message || "On-chain prediction failed.");
       }
     } finally {
       setLoading(false);
@@ -123,12 +106,6 @@ export default function PredictionForm({
       </button>
 
       <div className="fields">
-        <input
-          placeholder="Your name / FID (or use wallet)"
-          value={user}
-          onChange={(e) => setUser(e.target.value)}
-          disabled={!!address}
-        />
         <input
           placeholder="Your prediction (USD)"
           value={value}

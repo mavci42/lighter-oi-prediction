@@ -37,7 +37,7 @@ export async function submitPredictionOnchain(params: {
   const eth: any = (window as any).ethereum;
 
   if (!eth) {
-    throw new Error("No Ethereum provider found. Please open this miniapp inside Farcaster/Base wallet.");
+    throw new Error("Ethereum provider not found. This miniapp must be opened inside Farcaster/Base wallet.");
   }
 
   const client = createWalletClient({
@@ -47,13 +47,15 @@ export async function submitPredictionOnchain(params: {
 
   const [account] = await client.getAddresses();
 
-  // Let viem handle account connection - it will throw if no account
-  // This allows the wallet to prompt for connection if needed
+  if (!account) {
+    throw new Error("No wallet account available. Please open in Farcaster/Base and connect your wallet.");
+  }
+
   console.log("[ON-CHAIN] Submitting prediction:", {
     marketId: params.marketId.toString(),
     strikePrice: params.strikePrice.toString(),
     direction: params.direction,
-    account: account || "(wallet will prompt)",
+    account,
     contract: CONTRACT_ADDRESS,
   });
 
@@ -62,7 +64,7 @@ export async function submitPredictionOnchain(params: {
     abi: predictionAbi,
     functionName: "submitPrediction",
     args: [params.marketId, params.strikePrice, params.direction],
-    account: account!, // viem will prompt for connection if needed
+    account,
   });
 
   console.log("[ON-CHAIN] Transaction sent:", txHash);
