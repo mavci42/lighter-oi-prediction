@@ -74,6 +74,15 @@ export default function PredictionForm({
       
       if (err?.message?.includes("user rejected") || err?.message?.includes("User denied")) {
         setMsg("Transaction cancelled by user");
+      } else if (err?.message?.includes("No Ethereum provider found")) {
+        setMsg("⚠️ Please open this miniapp inside Farcaster/Base wallet.");
+        // Try to save off-chain as fallback
+        try {
+          await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
+          setMsg("Prediction saved (off-chain only - open in Farcaster for on-chain)");
+          setValue("");
+          if (onSuccess) onSuccess();
+        } catch {}
       } else if (err?.message?.includes("Missing VITE_PREDICTION_CONTRACT")) {
         setMsg("⚠️ Contract not configured. Saving prediction off-chain only.");
         // Try to save off-chain even if on-chain fails

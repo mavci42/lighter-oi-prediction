@@ -47,15 +47,13 @@ export async function submitPredictionOnchain(params: {
 
   const [account] = await client.getAddresses();
 
-  if (!account) {
-    throw new Error("No account connected. Please connect your wallet first.");
-  }
-
+  // Let viem handle account connection - it will throw if no account
+  // This allows the wallet to prompt for connection if needed
   console.log("[ON-CHAIN] Submitting prediction:", {
     marketId: params.marketId.toString(),
     strikePrice: params.strikePrice.toString(),
     direction: params.direction,
-    account,
+    account: account || "(wallet will prompt)",
     contract: CONTRACT_ADDRESS,
   });
 
@@ -64,7 +62,7 @@ export async function submitPredictionOnchain(params: {
     abi: predictionAbi,
     functionName: "submitPrediction",
     args: [params.marketId, params.strikePrice, params.direction],
-    account,
+    account: account!, // viem will prompt for connection if needed
   });
 
   console.log("[ON-CHAIN] Transaction sent:", txHash);
