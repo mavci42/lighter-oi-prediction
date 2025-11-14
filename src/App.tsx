@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-//import { fetchLighterOI } from "./lib/fetchLighterOI";
+import { apiGet } from "./lib/api";
 import PredictionForm from "./components/PredictionForm";
 import Leaderboard from "./components/Leaderboard";
 import { isFarcasterEnvironment } from "./lib/wallet";
@@ -21,16 +21,18 @@ export default function App() {
   useEffect(() => {
     async function load(){
       try{
-        const r = await fetch("/api/oi");
-        const j = await r.json();
-        if (r.ok && typeof j.oi === "number") {
+        const j = await apiGet<{oi: number; source?: string; updatedAt?: string}>("/api/oi");
+        if (typeof j.oi === "number") {
           setOi(j.oi);
           (window as any).__OI_SOURCE__ = j.source || "unknown";
           (window as any).__OI_UPDATED__ = j.updatedAt || null;
         } else {
           setOi(null);
         }
-      }catch{ setOi(null); }
+      }catch(e){
+        console.error("Failed to fetch OI:", e);
+        setOi(null);
+      }
     }
     load();
   }, []);
