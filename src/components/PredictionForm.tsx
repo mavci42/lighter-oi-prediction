@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { apiPost } from "../lib/api";
 import { connectWallet, shortenAddress } from "../lib/wallet";
+import { submitPredictionOnchain, type Direction } from "../onchain/predictionContract";
 
 export default function PredictionForm({
   oi,
@@ -15,6 +16,7 @@ export default function PredictionForm({
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [msg, setMsg] = useState<string|null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
 
   async function handleConnectWallet() {
     setConnecting(true);
@@ -32,15 +34,58 @@ export default function PredictionForm({
     e.preventDefault();
     const identifier = address || user;
     if (!identifier || !value) return;
+    
     setLoading(true);
     setMsg(null);
+    setTxHash(null);
+    
     try {
+      // Step 1: Submit on-chain transaction (if wallet is connected)
+      if (address) {
+        const predictionValue = parseFloat(value);
+        
+        // Convert prediction value to on-chain format
+        // marketId: 0 for now (can be dynamic later)
+        // strikePrice: prediction value scaled to 8 decimals
+        // direction: 1 (long) - assuming bullish prediction
+        const marketId = BigInt(0);
+        const strikePrice = BigInt(Math.round(predictionValue));
+        const direction: Direction = 1; // 1 = long (bullish)
+        
+        console.log("[PREDICT] Submitting on-chain transaction...");
+        const hash = await submitPredictionOnchain({
+          marketId,
+          strikePrice,
+          direction,
+        });
+        
+        setTxHash(hash);
+        console.log("[PREDICT] On-chain tx successful:", hash);
+      }
+      
+      // Step 2: Submit to off-chain backend (for leaderboard)
       await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
-      setMsg("Prediction submitted ✅");
+      
+      setMsg("Prediction submitted ✅" + (txHash ? " (on-chain)" : ""));
       setValue("");
       if (onSuccess) onSuccess();
     } catch (err:any) {
-      setMsg(err?.message || "Submit failed");
+      console.error("[PREDICT] Error:", err);
+      
+      if (err?.message?.includes("user rejected") || err?.message?.includes("User denied")) {
+        setMsg("Transaction cancelled by user");
+      } else if (err?.message?.includes("Missing VITE_PREDICTION_CONTRACT")) {
+        setMsg("⚠️ Contract not configured. Saving prediction off-chain only.");
+        // Try to save off-chain even if on-chain fails
+        try {
+          await apiPost("/api/predictions", { user: identifier, value: parseFloat(value) });
+          setMsg("Prediction saved (off-chain only)");
+          setValue("");
+          if (onSuccess) onSuccess();
+        } catch {}
+      } else {
+        setMsg(err?.message || "Submit failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -93,6 +138,18 @@ export default function PredictionForm({
         {loading ? "Submitting..." : "Submit Prediction"}
       </button>
       {msg && <p style={{marginTop:".5rem"}}>{msg}</p>}
+      {txHash && (
+        <p style={{marginTop:".5rem", fontSize:"0.85rem"}}>
+          <a 
+            href={`https://basescan.org/tx/${txHash}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{color: "#6a6cff", textDecoration: "underline"}}
+          >
+            View on BaseScan →
+          </a>
+        </p>
+      )}
     </form>
   );
 }
