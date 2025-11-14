@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { predictionAbi, PREDICTION_CONTRACT_ADDRESS, type Direction } from "../onchain/predictionContract";
+import { apiPost } from "../lib/api";
 
 export default function PredictionForm({
   oi,
@@ -91,9 +92,28 @@ export default function PredictionForm({
       });
       
       setTxHash(hash);
+      console.log("[PREDICT] On-chain tx successful:", hash);
+      
+      // Sync prediction to backend for leaderboard
+      try {
+        await apiPost("/api/predictions", {
+          txHash: hash,
+          user: currentAddress,
+          address: currentAddress,
+          value: predictionValue,
+          marketId: Number(marketId),
+          strikePrice: Number(strikePrice),
+          direction,
+          createdAt: new Date().toISOString(),
+        });
+        console.log("[PREDICT] Synced to backend successfully");
+      } catch (e) {
+        console.error("[PREDICT] Failed to sync with backend:", e);
+        // Don't show error to user - on-chain tx already succeeded
+      }
+      
       setMsg("✅ On-chain prediction submitted!");
       setValue("");
-      console.log("[PREDICT] On-chain tx successful:", hash);
       
       if (onSuccess) onSuccess();
     } catch (err: any) {
