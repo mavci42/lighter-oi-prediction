@@ -1,71 +1,71 @@
-import { useEffect, useState, useMemo } from "react";
-import { apiGet } from "../lib/api";
-import { groupPredictionsByDayAndRound, formatDate, type LeaderboardPrediction } from "../utils/roundLeaderboard";
+import { useEffect, useState } from "react";
+import { groupPredictionsByDayAndRound, formatDate, type LeaderboardPrediction, type DayGroup } from "../utils/roundLeaderboard";
+import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
 export default function Leaderboard(){
-  const [data, setData] = useState<any>(null);
-  const [err, setErr] = useState<string|null>(null);
-  const [allPredictions, setAllPredictions] = useState<LeaderboardPrediction[]>([]);
+  const [groups, setGroups] = useState<DayGroup[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string|null>(null);
 
   useEffect(() => {
-    let timer: number | undefined;
+    let cancelled = false;
+
     async function load() {
+      setLoading(true);
+      setError(null);
       try {
-        const response = await apiGet("/api/leaderboard");
-        setData(response);
-        setErr(null);
-        
-        // Normalize data for grouping - ONLY show on-chain predictions
-        if (response?.items && Array.isArray(response.items)) {
-          const normalized: LeaderboardPrediction[] = response.items
-            .filter((p: any) => {
-              // Only include predictions with on-chain transaction hash
-              const tx =
-                p.txHash ||
-                p.transactionHash ||
-                p.onchainTxHash ||
-                p.tx_hash ||
-                p.hash;
-              return !!tx; // Filter out off-chain/dummy predictions
-            })
-            .map((p: any, idx: number) => ({
-              id: p.id ?? p.txHash ?? p.transactionHash ?? p.onchainTxHash ?? `${p.user}-${p.createdAt ?? idx}`,
-              user: {
-                username: p.user ?? p.username,
-                displayName: p.displayName,
-                avatarUrl: p.avatarUrl,
-              },
-              address: p.address,
-              createdAt: p.createdAt ?? new Date().toISOString(),
-              round: p.round ?? p.roundNumber ?? p.roundIndex,
-              pnl: p.pnl ?? p.profit ?? p.returnPct,
-              score: p.score,
-              value: p.value,
-              diff: p.diff,
-              rank: p.rank,
-            }));
-          setAllPredictions(normalized);
-        }
+        const onchain = await fetchOnchainPredictions();
+        if (cancelled) return;
+
+        const normalized: LeaderboardPrediction[] = onchain.map((p) => ({
+          id: p.txHash,
+          address: p.user,
+          createdAt: p.createdAt,
+          // Şimdilik tüm tahminleri Round 1'e koyuyoruz.
+          // İleride marketId / saat / gün içi seans mantığına göre
+          // gerçek round logic'i ekleyebiliriz.
+          round: 1,
+          value: Number(p.strikePrice),
+          pnl: undefined,
+          score: undefined,
+          diff: undefined,
+          rank: undefined,
+        }));
+
+        const grouped = groupPredictionsByDayAndRound(normalized);
+        setGroups(grouped);
       } catch (e: any) {
-        setErr(e?.message || "Failed to load");
+        console.error("[LEADERBOARD] on-chain fetch error:", e);
+        if (!cancelled) {
+          setError(
+            e?.message || "On-chain leaderboard verisi alınırken hata oluştu."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
+
     load();
-    timer = window.setInterval(load, 15000);
-    return () => { if (timer) window.clearInterval(timer); };
+    const id = window.setInterval(load, 15000); // 15 sn'de bir tazele
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
   }, []);
 
-  const grouped = useMemo(
-    () => groupPredictionsByDayAndRound(allPredictions),
-    [allPredictions]
-  );
+  if (loading && !groups.length) {
+    return <p className="loading-leaderboard">Loading on-chain predictions...</p>;
+  }
 
-  if (err) return <p className="error-message">{err}</p>;
-  if (!data) return <p className="loading-leaderboard">Loading...</p>;
+  if (error) {
+    return <p className="error-message">{error}</p>;
+  }
 
-  // If no predictions yet, show empty state
-  if (!allPredictions.length) {
+  if (!groups.length) {
     return (
       <div className="leaderboard">
         <h2 className="leaderboard-title">Leaderboard</h2>
@@ -78,7 +78,7 @@ export default function Leaderboard(){
     <div className="leaderboard">
       <h2 className="leaderboard-title">Leaderboard</h2>
       
-      {grouped.map((day) => (
+      {groups.map((day) => (
         <section key={day.date} className="day-section">
           <h3 className="day-title">{formatDate(day.date)}</h3>
           

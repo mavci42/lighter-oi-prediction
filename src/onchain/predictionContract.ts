@@ -6,16 +6,28 @@ export const PREDICTION_CONTRACT_ADDRESS =
 
 export const predictionAbi = [
   {
+    type: "event",
+    name: "PredictionSubmitted",
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "user", type: "address" },
+      { indexed: false, name: "marketId", type: "uint256" },
+      { indexed: false, name: "strikePrice", type: "int256" },
+      { indexed: false, name: "direction", type: "uint8" },
+      { indexed: false, name: "timestamp", type: "uint256" }
+    ]
+  },
+  {
     type: "function",
     name: "submitPrediction",
     stateMutability: "nonpayable",
     inputs: [
       { name: "marketId", type: "uint256" },
       { name: "strikePrice", type: "int256" },
-      { name: "direction", type: "uint8" }, // 0 = short, 1 = long
+      { name: "direction", type: "uint8" }
     ],
-    outputs: [],
-  },
+    outputs: []
+  }
 ] as const satisfies Abi;
 
 export type Direction = 0 | 1;
