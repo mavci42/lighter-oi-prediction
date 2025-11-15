@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { groupPredictionsByDayAndRound, formatDate, type LeaderboardPrediction, type DayGroup } from "../utils/roundLeaderboard";
+import {
+  groupPredictionsByDayAndRound,
+  LeaderboardPrediction,
+  DayGroup,
+} from "../utils/roundLeaderboard";
 import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
-export default function Leaderboard(){
+export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string|null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,14 +22,12 @@ export default function Leaderboard(){
         const onchain = await fetchOnchainPredictions();
         if (cancelled) return;
 
+        // 1) On-chain event'leri LeaderboardPrediction formatına çevir
         const normalized: LeaderboardPrediction[] = onchain.map((p) => ({
           id: p.txHash,
           address: p.user,
           createdAt: p.createdAt,
-          // Şimdilik tüm tahminleri Round 1'e koyuyoruz.
-          // İleride marketId / saat / gün içi seans mantığına göre
-          // gerçek round logic'i ekleyebiliriz.
-          round: 1,
+          round: 1, // şimdilik hepsi Round 1
           value: Number(p.strikePrice),
           pnl: undefined,
           score: undefined,
@@ -33,7 +35,36 @@ export default function Leaderboard(){
           rank: undefined,
         }));
 
-        const grouped = groupPredictionsByDayAndRound(normalized);
+        // 2) GÜN + ROUND + ADRES bazında uniq yap:
+        //    Aynı gün/round içinde aynı address birden fazla tahmin yaptıysa,
+        //    sadece EN SON tahmini (createdAt en büyük olan) kalsın.
+        const byKey = new Map<string, LeaderboardPrediction>();
+
+        for (const p of normalized) {
+          const day = p.createdAt.split("T")[0]; // YYYY-MM-DD
+          const key = `${day}-${p.round}-${p.address?.toLowerCase() || ''}`;
+
+          const existing = byKey.get(key);
+          if (!existing) {
+            byKey.set(key, p);
+          } else {
+            const existingTs = new Date(existing.createdAt).getTime();
+            const currentTs = new Date(p.createdAt).getTime();
+            // Daha geç olan tahmini sakla
+            if (currentTs > existingTs) {
+              byKey.set(key, p);
+            }
+          }
+        }
+
+        // 3) Uniq prediction listesini zamana göre sırala
+        const uniquePredictions = Array.from(byKey.values()).sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+
+        // 4) Gün + round bazlı gruplamayı uygula
+        const grouped = groupPredictionsByDayAndRound(uniquePredictions);
         setGroups(grouped);
       } catch (e: any) {
         console.error("[LEADERBOARD] on-chain fetch error:", e);
@@ -50,7 +81,7 @@ export default function Leaderboard(){
     }
 
     load();
-    const id = window.setInterval(load, 15000); // 15 sn'de bir tazele
+    const id = window.setInterval(load, 15000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -58,11 +89,21 @@ export default function Leaderboard(){
   }, []);
 
   if (loading && !groups.length) {
-    return <p className="loading-leaderboard">Loading on-chain predictions...</p>;
+    return (
+      <div className="leaderboard">
+        <h2 className="leaderboard-title">Leaderboard</h2>
+        <p className="no-entries">Loading on-chain predictions...</p>
+      </div>
+    );
   }
 
   if (error) {
-    return <p className="error-message">{error}</p>;
+    return (
+      <div className="leaderboard">
+        <h2 className="leaderboard-title">Leaderboard</h2>
+        <p className="error-message">{error}</p>
+      </div>
+    );
   }
 
   if (!groups.length) {
@@ -77,67 +118,58 @@ export default function Leaderboard(){
   return (
     <div className="leaderboard">
       <h2 className="leaderboard-title">Leaderboard</h2>
-      
       {groups.map((day) => (
         <section key={day.date} className="day-section">
-          <h3 className="day-title">{formatDate(day.date)}</h3>
-          
-          <div className="round-grid">
-            {day.rounds.map((round) => (
-              <article key={round.round} className="round-card">
-                <header className="round-header">
-                  <div className="round-title">Round {round.round}</div>
-                  {round.predictions.length > 0 && (
-                    <div className="round-subtitle">
-                      Winner:{" "}
-                      {round.predictions[0]?.user?.username ??
-                        round.predictions[0]?.user?.displayName ??
-                        (round.predictions[0]?.address
-                          ? `${round.predictions[0].address.slice(0, 6)}...${round.predictions[0].address.slice(-4)}`
-                          : "-")}
-                    </div>
-                  )}
-                </header>
-                
-                <ol className="round-list">
-                  {round.predictions.map((p, idx) => (
-                    <li
-                      key={p.id ?? `${day.date}-${round.round}-${idx}`}
-                      className={
-                        "round-row" +
-                        (idx === 0 ? " round-row--winner" : "") +
-                        (idx === 1 ? " round-row--second" : "") +
-                        (idx === 2 ? " round-row--third" : "")
-                      }
-                    >
-                      <span className="round-rank">#{idx + 1}</span>
-                      <span className="round-user">
-                        {p.user?.username ??
-                          p.user?.displayName ??
-                          (p.address
-                            ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
-                            : "Anon")}
+          <h3 className="day-title">{day.date}</h3>
+          {day.rounds.map((round) => (
+            <article key={round.round} className="round-card">
+              <header className="round-header">
+                <div className="round-title">Round {round.round}</div>
+                {round.predictions.length > 0 && (
+                  <div className="round-subtitle">
+                    Winner: {" "}
+                    {round.predictions[0]?.address
+                      ? `${round.predictions[0].address.slice(0, 6)}...${round.predictions[0].address.slice(-4)}`
+                      : "-"}
+                  </div>
+                )}
+              </header>
+              <ol className="round-list">
+                {round.predictions.map((p, idx) => (
+                  <li
+                    key={p.id}
+                    className={
+                      "round-row" +
+                      (idx === 0 ? " round-row--winner" : "") +
+                      (idx === 1 ? " round-row--second" : "") +
+                      (idx === 2 ? " round-row--third" : "")
+                    }
+                  >
+                    <span className="round-rank">#{idx + 1}</span>
+                    <span className="round-user">
+                      {p.address
+                        ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
+                        : "Anon"}
+                    </span>
+                    {p.value != null && (
+                      <span className="round-value">
+                        ${(p.value / 1e6).toFixed(2)}M
                       </span>
-                      {p.value != null && (
-                        <span className="round-value">
-                          ${(p.value / 1e6).toFixed(2)}M
-                        </span>
-                      )}
-                      <span className="round-score">
-                        {p.diff != null
-                          ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
-                          : p.pnl != null
-                          ? `${p.pnl.toFixed(2)}%`
-                          : p.score != null
-                          ? p.score.toFixed(2)
-                          : "-"}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </article>
-            ))}
-          </div>
+                    )}
+                    <span className="round-score">
+                      {p.diff != null
+                        ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
+                        : p.pnl != null
+                        ? `${p.pnl.toFixed(2)}%`
+                        : p.score != null
+                        ? p.score.toFixed(2)
+                        : "-"}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </article>
+          ))}
         </section>
       ))}
     </div>
