@@ -111,7 +111,7 @@ export default function PredictionForm({
       if (currentAddress) {
         const already = await hasTodayPredictionForAddress(currentAddress);
         if (already) {
-          setMsg("Bu round için zaten bir tahmin girdin. 🎯");
+          setMsg("You already submitted a prediction for this round. 🎯");
           setIsSubmitting(false);
           return;
         }
