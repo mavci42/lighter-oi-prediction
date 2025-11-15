@@ -7,7 +7,7 @@ import {
 
 const client = createPublicClient({
   chain: base,
-  transport: http(),
+  transport: http("https://base-mainnet.public.blastapi.io"),
 });
 
 export type OnchainPrediction = {
