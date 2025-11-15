@@ -170,7 +170,7 @@ export default function PredictionForm({
   return (
     <form onSubmit={handleSubmit} className="form">
       <p className="oi-line">
-        <b>Current OI:</b> {oi ? `$${(oi / 1e6).toFixed(2)}M` : "loading..."}
+        <b>Current OI:</b> {oi ? `$${(oi / 1e6).toFixed(2)}M` : "coming soon..."}
         <span style={{opacity:.8, fontSize:"0.85rem", marginLeft:8}}>
           {(window as any).__OI_SOURCE__ ? `(${(window as any).__OI_SOURCE__})` : ""}
         </span>
