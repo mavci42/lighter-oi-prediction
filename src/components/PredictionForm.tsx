@@ -1,7 +1,28 @@
 import { useState } from "react";
+import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { predictionAbi, PREDICTION_CONTRACT_ADDRESS, type Direction } from "../onchain/predictionContract";
 import { apiPost } from "../lib/api";
+
+async function hasTodayPredictionForAddress(address: string): Promise<boolean> {
+  try {
+    const onchain = await fetchOnchainPredictions();
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    return onchain.some((p) => {
+      const day = p.createdAt.split("T")[0];
+      return (
+        day === today &&
+        p.user.toLowerCase() === address.toLowerCase()
+      );
+    });
+  } catch (e) {
+    console.warn("[PREDICT] could not check today predictions on-chain:", e);
+    // Eğer RPC hata verirse kullanıcıyı bloklamayalım,
+    // on-chain tx akmaya devam etsin:
+    return false;
+  }
+}
 
 export default function PredictionForm({
   oi,
@@ -17,8 +38,9 @@ export default function PredictionForm({
   const [value, setValue] = useState("");
   const [msg, setMsg] = useState<string|null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const loading = isWriting;
+  const loading = isWriting || isSubmitting;
 
   async function handleConnectWallet() {
     try {
@@ -84,6 +106,18 @@ export default function PredictionForm({
         contract: PREDICTION_CONTRACT_ADDRESS,
       });
       
+      // Aynı gün içinde aynı adres zaten tahmin girdiyse,
+      // ikinci kez on-chain tx açma.
+      if (currentAddress) {
+        const already = await hasTodayPredictionForAddress(currentAddress);
+        if (already) {
+          setMsg("Bu round için zaten bir tahmin girdin. 🎯");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
+      setIsSubmitting(true);
       const hash = await writeContractAsync({
         address: PREDICTION_CONTRACT_ADDRESS,
         abi: predictionAbi,
@@ -114,10 +148,12 @@ export default function PredictionForm({
       
       setMsg("✅ On-chain prediction submitted!");
       setValue("");
+      setIsSubmitting(false);
       
       if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error("[PREDICT] Error:", err);
+      setIsSubmitting(false);
       
       const errMsg = String(err?.message || "");
       
