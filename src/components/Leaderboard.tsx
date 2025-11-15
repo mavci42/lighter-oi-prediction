@@ -65,7 +65,28 @@ export default function Leaderboard() {
 
         // 4) Gün + round bazlı gruplamayı uygula
         const grouped = groupPredictionsByDayAndRound(uniquePredictions);
-        setGroups(grouped);
+
+        // Günler için global round numarası ata:
+        // En eski gün = Round 1, sonra 2, 3...
+        const sortedByDateAsc = [...grouped].sort((a, b) =>
+          a.date.localeCompare(b.date)
+        );
+        const dayRoundIndex = new Map<string, number>();
+        sortedByDateAsc.forEach((day, idx) => {
+          dayRoundIndex.set(day.date, idx + 1);
+        });
+
+        // Her günün içindeki round'ların round numarasını
+        // o güne atanmış global round ile değiştir
+        const groupedWithRounds = grouped.map((day) => ({
+          ...day,
+          rounds: day.rounds.map((round) => ({
+            ...round,
+            round: dayRoundIndex.get(day.date) ?? round.round,
+          })),
+        }));
+
+        setGroups(groupedWithRounds);
       } catch (e: any) {
         console.error("[LEADERBOARD] on-chain fetch error:", e);
         if (!cancelled) {
