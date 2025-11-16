@@ -106,10 +106,7 @@ export default function PredictionForm({
         currentAddress = result.accounts[0];
       }
       
-      if (!PREDICTION_CONTRACT_ADDRESS || PREDICTION_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-        setMsg("⚠️ Contract not configured. Please contact the administrator.");
-        return;
-      }
+      // Contract address is now hardcoded, so this check is no longer needed
       
       const predictionValue = parseFloat(value);
       

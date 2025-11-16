@@ -1,8 +1,7 @@
 import type { Abi } from "viem";
 
 export const PREDICTION_CONTRACT_ADDRESS =
-  (import.meta.env.VITE_PREDICTION_CONTRACT as `0x${string}`) ||
-  "0x0000000000000000000000000000000000000000";
+  "0x69e05BE87d6dCf0627ff363a8Cd0CfFbfFc81321" as `0x${string}`;
 
 export const predictionAbi = [
   {
