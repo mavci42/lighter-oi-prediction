@@ -239,12 +239,16 @@ export default function Leaderboard() {
                       }
                     >
                       <span className="round-rank">#{idx + 1}</span>
-                      <span className="round-user">
-                        {p.address
-                          ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
-                          : "Anon"}
+                      
+                      <div className="leaderboard-row-main">
+                        <span className="address-label">
+                          {p.address
+                            ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
+                            : "Anon"}
+                        </span>
+
                         {(() => {
-                          // prefer entry.value as the prediction; fallback to strikePrice if needed
+                          // Prefer entry.value as the numeric prediction, fallback to strikePrice if present
                           const rawPrediction =
                             typeof p.value === "number"
                               ? p.value
@@ -255,19 +259,13 @@ export default function Leaderboard() {
                           }
 
                           return (
-                            <span className="address-prediction-value">
-                              {" "}
-                              · {formatOiUsdShort(Number(rawPrediction))} OI
+                            <span className="prediction-label">
+                              {formatOiUsdShort(Number(rawPrediction))} OI
                             </span>
                           );
                         })()}
-                        {typeof p.predictionCount === "number" && p.predictionCount > 1 && (
-                          <span className="address-prediction-count">
-                            {" "}
-                            · x{p.predictionCount}
-                          </span>
-                        )}
-                      </span>
+                      </div>
+
                       {p.value != null && (
                         <span className="round-value">
                           ${(p.value / 1e6).toFixed(2)}M
