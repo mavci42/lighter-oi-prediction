@@ -18,6 +18,18 @@ function formatOiUsdShort(raw?: number | null): string {
   return value.toFixed(0);
 }
 
+function shortAddress(addr?: string | null): string {
+  if (!addr) return "-";
+  const a = addr.trim();
+  if (a.length <= 10) return a;
+
+  // We want something like: 0x7...fc7
+  // take the first 3 chars and last 3 chars
+  const start = a.slice(0, 3);   // e.g. "0x7"
+  const end = a.slice(-3);      // e.g. "fc7"
+  return `${start}...${end}`;
+}
+
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -222,7 +234,7 @@ export default function Leaderboard() {
                     <div className="round-subtitle">
                       Winner:{" "}
                       {round.predictions[0]?.address
-                        ? `${round.predictions[0].address.slice(0, 6)}...${round.predictions[0].address.slice(-4)}`
+                        ? shortAddress(round.predictions[0].address)
                         : "-"}
                     </div>
                   )}
@@ -243,7 +255,7 @@ export default function Leaderboard() {
                       <div className="leaderboard-row-main">
                         <span className="address-label">
                           {p.address
-                            ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
+                            ? shortAddress(p.address)
                             : "Anon"}
                         </span>
 
@@ -271,15 +283,17 @@ export default function Leaderboard() {
                           ${(p.value / 1e6).toFixed(2)}M
                         </span>
                       )}
-                      <span className="round-score">
-                        {p.diff != null
-                          ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
-                          : p.pnl != null
-                          ? `${p.pnl.toFixed(2)}%`
-                          : p.score != null
-                          ? p.score.toFixed(2)
-                          : "-"}
-                      </span>
+                      {p.diff != null ? (
+                        <span className="round-score">
+                          {p.diff != null
+                            ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
+                            : p.pnl != null
+                            ? `${p.pnl.toFixed(2)}%`
+                            : p.score != null
+                            ? p.score.toFixed(2)
+                            : ""}
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ol>
