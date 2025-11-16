@@ -66,6 +66,54 @@
   border-color: rgba(106, 108, 255, 0.3);
 }
 
+/* ENDED round: soft red card */
+.round-card--ended {
+  background: rgba(255, 245, 245, 0.05);
+  border-color: rgba(245, 194, 194, 0.3);
+}
+
+/* ACTIVE round: pastel green card with subtle pulse */
+.round-card--active {
+  background: rgba(242, 255, 246, 0.05);
+  border-color: rgba(183, 229, 199, 0.3);
+  box-shadow: 0 0 0 1px rgba(105, 187, 138, 0.2);
+  animation: activeRoundPulse 4s ease-in-out infinite;
+}
+
+.round-card--active:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(106, 108, 255, 0.15), 0 0 0 1px rgba(105, 187, 138, 0.4);
+  border-color: rgba(183, 229, 199, 0.6);
+}
+
+/* Small diagonal "ENDED" label in the top-left */
+.round-card__status-ribbon {
+  position: absolute;
+  top: 6px;
+  left: -12px;
+  transform: rotate(-35deg);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  color: #b32626;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+@keyframes activeRoundPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(105, 187, 138, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(105, 187, 138, 0.0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(105, 187, 138, 0.0);
+  }
+}
+
 /* Round Header */
 .round-header {
   margin-bottom: 1rem;

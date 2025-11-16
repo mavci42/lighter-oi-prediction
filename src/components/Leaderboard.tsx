@@ -136,61 +136,86 @@ export default function Leaderboard() {
     );
   }
 
+  // Determine the latest day and latest round as the "active" round
+  const latestDay = groups[groups.length - 1];
+  const latestRound =
+    latestDay && latestDay.rounds && latestDay.rounds[latestDay.rounds.length - 1];
+
+  const latestDayKey = latestDay?.date;
+  const latestRoundNumber = latestRound?.round;
+
   return (
     <div className="leaderboard">
       <h2 className="leaderboard-title">Leaderboard</h2>
       {groups.map((day) => (
         <section key={day.date} className="day-section">
           <h3 className="day-title">{day.date}</h3>
-          {day.rounds.map((round) => (
-            <article key={round.round} className="round-card">
-              <header className="round-header">
-                <div className="round-title">Round {round.round}</div>
-                {round.predictions.length > 0 && (
-                  <div className="round-subtitle">
-                    Winner: {" "}
-                    {round.predictions[0]?.address
-                      ? `${round.predictions[0].address.slice(0, 6)}...${round.predictions[0].address.slice(-4)}`
-                      : "-"}
-                  </div>
+          {day.rounds.map((round) => {
+            const isActiveRound =
+              day.date === latestDayKey && round.round === latestRoundNumber;
+            const isEndedRound = !isActiveRound;
+
+            const roundCardClassNames = [
+              "round-card",
+              isActiveRound ? "round-card--active" : "",
+              isEndedRound ? "round-card--ended" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+
+            return (
+              <article key={round.round} className={roundCardClassNames}>
+                {isEndedRound && (
+                  <span className="round-card__status-ribbon">ENDED</span>
                 )}
-              </header>
-              <ol className="round-list">
-                {round.predictions.map((p, idx) => (
-                  <li
-                    key={p.id}
-                    className={
-                      "round-row" +
-                      (idx === 0 ? " round-row--winner" : "") +
-                      (idx === 1 ? " round-row--second" : "") +
-                      (idx === 2 ? " round-row--third" : "")
-                    }
-                  >
-                    <span className="round-rank">#{idx + 1}</span>
-                    <span className="round-user">
-                      {p.address
-                        ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
-                        : "Anon"}
-                    </span>
-                    {p.value != null && (
-                      <span className="round-value">
-                        ${(p.value / 1e6).toFixed(2)}M
-                      </span>
-                    )}
-                    <span className="round-score">
-                      {p.diff != null
-                        ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
-                        : p.pnl != null
-                        ? `${p.pnl.toFixed(2)}%`
-                        : p.score != null
-                        ? p.score.toFixed(2)
+                <header className="round-header">
+                  <div className="round-title">Round {round.round}</div>
+                  {round.predictions.length > 0 && (
+                    <div className="round-subtitle">
+                      Winner:{" "}
+                      {round.predictions[0]?.address
+                        ? `${round.predictions[0].address.slice(0, 6)}...${round.predictions[0].address.slice(-4)}`
                         : "-"}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </article>
-          ))}
+                    </div>
+                  )}
+                </header>
+                <ol className="round-list">
+                  {round.predictions.map((p, idx) => (
+                    <li
+                      key={p.id}
+                      className={
+                        "round-row" +
+                        (idx === 0 ? " round-row--winner" : "") +
+                        (idx === 1 ? " round-row--second" : "") +
+                        (idx === 2 ? " round-row--third" : "")
+                      }
+                    >
+                      <span className="round-rank">#{idx + 1}</span>
+                      <span className="round-user">
+                        {p.address
+                          ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
+                          : "Anon"}
+                      </span>
+                      {p.value != null && (
+                        <span className="round-value">
+                          ${(p.value / 1e6).toFixed(2)}M
+                        </span>
+                      )}
+                      <span className="round-score">
+                        {p.diff != null
+                          ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
+                          : p.pnl != null
+                          ? `${p.pnl.toFixed(2)}%`
+                          : p.score != null
+                          ? p.score.toFixed(2)
+                          : "-"}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            );
+          })}
         </section>
       ))}
     </div>
