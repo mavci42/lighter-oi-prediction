@@ -7,6 +7,17 @@ import {
 import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
+function formatOiUsdShort(raw?: number | null): string {
+  if (raw == null || !Number.isFinite(raw)) return "-";
+  const value = Number(raw);
+  const abs = Math.abs(value);
+
+  if (abs >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + "B";
+  if (abs >= 1_000_000) return (value / 1_000_000).toFixed(2) + "M";
+  if (abs >= 1_000) return (value / 1_000).toFixed(2) + "K";
+  return value.toFixed(0);
+}
+
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -232,6 +243,24 @@ export default function Leaderboard() {
                         {p.address
                           ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
                           : "Anon"}
+                        {(() => {
+                          // prefer entry.value as the prediction; fallback to strikePrice if needed
+                          const rawPrediction =
+                            typeof p.value === "number"
+                              ? p.value
+                              : (p as any).strikePrice;
+
+                          if (rawPrediction == null || !Number.isFinite(Number(rawPrediction))) {
+                            return null;
+                          }
+
+                          return (
+                            <span className="address-prediction-value">
+                              {" "}
+                              · {formatOiUsdShort(Number(rawPrediction))} OI
+                            </span>
+                          );
+                        })()}
                         {typeof p.predictionCount === "number" && p.predictionCount > 1 && (
                           <span className="address-prediction-count">
                             {" "}

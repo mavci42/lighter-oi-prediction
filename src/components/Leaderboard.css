@@ -135,6 +135,13 @@
   opacity: 0.8;
 }
 
+/* Small text for "· 1.63B OI" next to address */
+.address-prediction-value {
+  font-size: 11px;
+  opacity: 0.85;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 @keyframes activeRoundPulse {
   0% {
     box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.35);
