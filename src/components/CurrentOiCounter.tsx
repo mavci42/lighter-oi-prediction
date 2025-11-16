@@ -5,20 +5,21 @@ type CurrentOiCounterProps = {
   label?: string;
 };
 
-const formatCurrencyTr = (value: number) => {
+const formatCurrencyCompact = (value: number) => {
+  // 1730000000 -> 1.73B
   return (
-    "$" +
-    new Intl.NumberFormat("tr-TR", {
-      maximumFractionDigits: 0,
-    }).format(Math.round(value))
+    new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 2,
+    }).format(value) + " USD"
   );
 };
 
 export const CurrentOiCounter: React.FC<CurrentOiCounterProps> = ({
   value,
-  label = "24sa Açık Pozisyon",
+  label = "Current OI",
 }) => {
-  const formatted = formatCurrencyTr(value);
+  const formatted = formatCurrencyCompact(value);
 
   return (
     <div className="w-full rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 shadow-sm select-none">

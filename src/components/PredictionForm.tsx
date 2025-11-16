@@ -4,18 +4,9 @@ import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { predictionAbi, PREDICTION_CONTRACT_ADDRESS, type Direction } from "../onchain/predictionContract";
 import { apiPost } from "../lib/api";
 import { useCurrentOi } from "../hooks/useCurrentOi";
+import { CurrentOiCounter } from "./CurrentOiCounter";
 
-function formatOiUsd(value: number | null): string {
-  if (value == null || !Number.isFinite(value)) return "coming soon...";
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) {
-    return (value / 1_000_000_000).toFixed(2) + "B";
-  }
-  if (abs >= 1_000_000) {
-    return (value / 1_000_000).toFixed(2) + "M";
-  }
-  return value.toFixed(0);
-}
+
 
 async function hasTodayPredictionForAddress(address: string): Promise<boolean> {
   try {
@@ -50,16 +41,9 @@ export default function PredictionForm({
   const [msg, setMsg] = useState<string|null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { data: currentOi, loading: oiLoading } = useCurrentOi();
-  
+  const { data: currentOi } = useCurrentOi();
+
   const loading = isWriting || isSubmitting;
-  
-  const oiLabel =
-    oiLoading
-      ? "Current OI: loading..."
-      : currentOi?.usd != null
-      ? `Current OI: ${formatOiUsd(currentOi.usd)} USD`
-      : "Current OI: coming soon...";
 
   async function handleConnectWallet() {
     try {
@@ -185,12 +169,9 @@ export default function PredictionForm({
 
   return (
     <form onSubmit={handleSubmit} className="form">
-      <p className="oi-line">
-        <b>{oiLabel}</b>
-        <span style={{opacity:.8, fontSize:"0.85rem", marginLeft:8}}>
-          {(window as any).__OI_SOURCE__ ? `(${(window as any).__OI_SOURCE__})` : ""}
-        </span>
-      </p>
+      <div className="mt-4 mb-4">
+        <CurrentOiCounter value={currentOi?.usd || 0} label="Current OI (USD)" />
+      </div>
 
       <button
         type="button"
