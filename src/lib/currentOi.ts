@@ -1,20 +1,23 @@
+const COINGECKO_DEMO_KEY = "CG-FJ4paYNzau8KrTYJ5B81p3Lf";
+
 export type CurrentOiResult = {
   usd: number | null;
   raw: any | null;
 };
 
 export async function fetchLighterCurrentOi(): Promise<CurrentOiResult> {
-  const apiKey = import.meta.env.VITE_COINGECKO_API_KEY;
+  const apiKey = COINGECKO_DEMO_KEY;
 
-  // If there is no API key, just return null and let the UI show "coming soon..."
   if (!apiKey) {
-    console.warn("[CurrentOI] VITE_COINGECKO_API_KEY is not set, skipping OI fetch.");
+    console.warn("[CurrentOI] CoinGecko demo API key is not set.");
     return { usd: null, raw: null };
   }
 
   try {
-    // 1) Fetch Lighter derivatives EXCHANGE data -> total OI in BTC
-    //    Use the root domain and x_cg_demo_api_key query param as specified by CoinGecko.
+    //
+    // 1) Fetch Lighter EXCHANGE-level open interest in BTC
+    //    Endpoint: /api/v3/derivatives/exchanges/lighter
+    //
     const lighterUrl =
       "https://api.coingecko.com/api/v3/derivatives/exchanges/lighter" +
       "?x_cg_demo_api_key=" +
@@ -33,7 +36,7 @@ export async function fetchLighterCurrentOi(): Promise<CurrentOiResult> {
 
     const lighterData = await lighterRes.json();
 
-    // open_interest_btc may be a number or a string; normalize to a number
+    // open_interest_btc may be number or string; normalize
     const oiBtcRaw = lighterData?.open_interest_btc;
     let oiBtc: number | null = null;
 
@@ -49,8 +52,10 @@ export async function fetchLighterCurrentOi(): Promise<CurrentOiResult> {
       return { usd: null, raw: { lighter: lighterData } };
     }
 
-    // 2) Fetch BTC price in USD using the simple price endpoint:
-    //    https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&x_cg_demo_api_key=KEY
+    //
+    // 2) Fetch BTC price in USD
+    //    Endpoint: /api/v3/simple/price?ids=bitcoin&vs_currencies=usd
+    //
     const priceUrl =
       "https://api.coingecko.com/api/v3/simple/price" +
       "?ids=bitcoin&vs_currencies=usd" +
@@ -84,7 +89,9 @@ export async function fetchLighterCurrentOi(): Promise<CurrentOiResult> {
       return { usd: null, raw: { lighter: lighterData, price: priceData } };
     }
 
-    // 3) Compute OI in USD
+    //
+    // 3) Compute total OI in USD = OI_BTC * BTC_USD
+    //
     const usdOi = oiBtc * btcUsd;
 
     return {
