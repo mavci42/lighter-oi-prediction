@@ -5,35 +5,65 @@ type CurrentOiCounterProps = {
   label?: string;
 };
 
-const formatCurrencyCompact = (value: number) => {
-  // 1730000000 -> 1.73B
+const formatCurrencyTrLong = (value: number) => {
+  // 1731286402 -> "$1.731.286.402"
   return (
-    new Intl.NumberFormat("en-US", {
-      notation: "compact",
-      maximumFractionDigits: 2,
-    }).format(value) + " USD"
+    "$" +
+    new Intl.NumberFormat("tr-TR", {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+      useGrouping: true,
+    }).format(Math.round(value))
   );
 };
 
 export const CurrentOiCounter: React.FC<CurrentOiCounterProps> = ({
   value,
-  label = "Current OI",
+  label = "Current OI (USD)",
 }) => {
-  const formatted = formatCurrencyCompact(value);
+  const formatted = formatCurrencyTrLong(value);
+
+  const containerStyle: React.CSSProperties = {
+    width: "100%",
+    borderRadius: 16,
+    border: "1px solid rgba(254, 202, 202, 1)", // yumuşak kırmızı çerçeve
+    backgroundColor: "#FFE4E6", // pastel açık kırmızı
+    padding: "12px 16px",
+    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+    boxSizing: "border-box",
+  };
+
+  const numberChipStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    padding: "6px 14px",
+    backgroundColor: "#FB7185", // daha koyu kırmızı şerit
+    marginBottom: 4,
+  };
+
+  const numberTextStyle: React.CSSProperties = {
+    fontFamily: "monospace",
+    fontSize: "18px",
+    letterSpacing: "0.12em",
+    color: "#FEF2F2",
+    lineHeight: 1,
+    whiteSpace: "nowrap",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: "12px",
+    color: "#9F1239", // koyu kırmızı ton
+  };
 
   return (
-    <div className="w-full rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 shadow-sm select-none">
-      <div className="flex flex-col gap-1">
-        <div className="inline-flex items-center">
-          <div className="inline-flex rounded-xl bg-rose-500/90 px-3 py-1">
-            <span className="font-mono text-lg leading-none tracking-[0.18em] text-rose-50">
-              {formatted}
-            </span>
-          </div>
-        </div>
-        <div>
-          <span className="text-[12px] text-rose-700/80">{label}</span>
-        </div>
+    <div style={containerStyle}>
+      <div style={numberChipStyle}>
+        <span style={numberTextStyle}>{formatted}</span>
+      </div>
+      <div>
+        <span style={labelStyle}>{label}</span>
       </div>
     </div>
   );
