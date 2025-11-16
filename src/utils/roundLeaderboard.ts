@@ -15,6 +15,8 @@ export type LeaderboardPrediction = {
   value?: number;          // prediction value
   diff?: number;           // difference from actual
   rank?: number;           // current rank
+  // NEW: how many predictions this address made in this day+round
+  predictionCount?: number;
 };
 
 /**

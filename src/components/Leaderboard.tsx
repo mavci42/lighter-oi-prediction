@@ -35,35 +35,49 @@ export default function Leaderboard() {
           rank: undefined,
         }));
 
-        // 2) GÜN + ROUND + ADRES bazında uniq yap:
-        //    Aynı gün/round içinde aynı address birden fazla tahmin yaptıysa,
-        //    sadece EN SON tahmini (createdAt en büyük olan) kalsın.
+        // 1) Count how many predictions each address made per day+round
         const byKey = new Map<string, LeaderboardPrediction>();
+        const countByKey = new Map<string, number>();
 
         for (const p of normalized) {
           const day = p.createdAt.split("T")[0]; // YYYY-MM-DD
-          const key = `${day}-${p.round}-${p.address?.toLowerCase() || ''}`;
+          const address = (p.address || "").toLowerCase();
+          const key = `${day}-${p.round}-${address}`;
+
+          // increase count for this (day, round, address)
+          countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
 
           const existing = byKey.get(key);
           if (!existing) {
             byKey.set(key, p);
           } else {
+            // keep the latest prediction in time
             const existingTs = new Date(existing.createdAt).getTime();
             const currentTs = new Date(p.createdAt).getTime();
-            // Daha geç olan tahmini sakla
             if (currentTs > existingTs) {
               byKey.set(key, p);
             }
           }
         }
 
-        // 3) Uniq prediction listesini zamana göre sırala
-        const uniquePredictions = Array.from(byKey.values()).sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        );
+        // 2) Create unique predictions list with predictionCount attached
+        const uniquePredictions: LeaderboardPrediction[] = Array.from(byKey.values())
+          .map((p) => {
+            const day = p.createdAt.split("T")[0];
+            const address = (p.address || "").toLowerCase();
+            const key = `${day}-${p.round}-${address}`;
+            const predictionCount = countByKey.get(key) ?? 1;
+            return {
+              ...p,
+              predictionCount,
+            };
+          })
+          .sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
 
-        // 4) Gün + round bazlı gruplamayı uygula
+        // 3) Then use uniquePredictions in groupPredictionsByDayAndRound(...)
         const grouped = groupPredictionsByDayAndRound(uniquePredictions);
 
         // Günler için global round numarası ata:
@@ -136,13 +150,30 @@ export default function Leaderboard() {
     );
   }
 
-  // Determine the latest day and latest round as the "active" round
-  const latestDay = groups[groups.length - 1];
-  const latestRound =
-    latestDay && latestDay.rounds && latestDay.rounds[latestDay.rounds.length - 1];
+  // Compute the ACTIVE round robustly (max date and max round number)
+  const { latestDayKey, latestRoundNumber } = (() => {
+    if (!groups || groups.length === 0) {
+      return { latestDayKey: null as string | null, latestRoundNumber: null as number | null };
+    }
 
-  const latestDayKey = latestDay?.date;
-  const latestRoundNumber = latestRound?.round;
+    // Find the latest date string
+    let latest = groups[0];
+    for (const g of groups) {
+      if (g.date > latest.date) {
+        latest = g;
+      }
+    }
+
+    // Within that day, find the highest round number
+    let maxRound = 0;
+    for (const r of latest.rounds) {
+      if (typeof r.round === "number" && r.round > maxRound) {
+        maxRound = r.round;
+      }
+    }
+
+    return { latestDayKey: latest.date, latestRoundNumber: maxRound };
+  })();
 
   return (
     <div className="leaderboard">
@@ -152,7 +183,7 @@ export default function Leaderboard() {
           <h3 className="day-title">{day.date}</h3>
           {day.rounds.map((round) => {
             const isActiveRound =
-              day.date === latestDayKey && round.round === latestRoundNumber;
+              latestDayKey === day.date && latestRoundNumber === round.round;
             const isEndedRound = !isActiveRound;
 
             const roundCardClassNames = [
@@ -167,6 +198,12 @@ export default function Leaderboard() {
               <article key={round.round} className={roundCardClassNames}>
                 {isEndedRound && (
                   <span className="round-card__status-ribbon">ENDED</span>
+                )}
+                {isActiveRound && (
+                  <div className="round-card__status-badge">
+                    <span className="round-card__live-dot" />
+                    LIVE
+                  </div>
                 )}
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
@@ -195,6 +232,12 @@ export default function Leaderboard() {
                         {p.address
                           ? `${p.address.slice(0, 6)}...${p.address.slice(-4)}`
                           : "Anon"}
+                        {typeof p.predictionCount === "number" && p.predictionCount > 1 && (
+                          <span className="address-prediction-count">
+                            {" "}
+                            · x{p.predictionCount}
+                          </span>
+                        )}
                       </span>
                       {p.value != null && (
                         <span className="round-value">
