@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { apiGet } from "./lib/api";
 import PredictionForm from "./components/PredictionForm";
 import Leaderboard from "./components/Leaderboard";
 import { isFarcasterEnvironment } from "./lib/wallet";
 import "./style.css";
 
 export default function App() {
-  const [oi, setOi] = useState<number | null>(null);
   const [view, setView] = useState<"predict" | "leaderboard">("predict");
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -18,24 +16,7 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    async function load(){
-      try{
-        const j = await apiGet<{oi: number; source?: string; updatedAt?: string}>("/api/oi");
-        if (typeof j.oi === "number") {
-          setOi(j.oi);
-          (window as any).__OI_SOURCE__ = j.source || "unknown";
-          (window as any).__OI_UPDATED__ = j.updatedAt || null;
-        } else {
-          setOi(null);
-        }
-      }catch(e){
-        console.error("Failed to fetch OI:", e);
-        setOi(null);
-      }
-    }
-    load();
-  }, []);
+
 
   return (
     <div className="app">
@@ -60,7 +41,6 @@ export default function App() {
 
       {view === "predict" ? (
         <PredictionForm
-          oi={oi}
           onSuccess={() => setRefreshKey((k)=>k+1)}
         />
       ) : (
