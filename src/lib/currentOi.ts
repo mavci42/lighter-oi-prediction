@@ -13,59 +13,83 @@ export async function fetchLighterCurrentOi(): Promise<CurrentOiResult> {
   }
 
   try {
-    // Use the root domain and x_cg_demo_api_key query param as specified by CoinGecko
-    const url =
+    // 1) Fetch Lighter derivatives EXCHANGE data -> total OI in BTC
+    //    Use the root domain and x_cg_demo_api_key query param as specified by CoinGecko.
+    const lighterUrl =
       "https://api.coingecko.com/api/v3/derivatives/exchanges/lighter" +
       "?x_cg_demo_api_key=" +
       encodeURIComponent(apiKey);
 
-    const res = await fetch(url);
+    const lighterRes = await fetch(lighterUrl);
 
-    if (!res.ok) {
+    if (!lighterRes.ok) {
       console.error(
-        "[CurrentOI] CoinGecko response not ok:",
-        res.status,
-        res.statusText
+        "[CurrentOI] CoinGecko lighter response not ok:",
+        lighterRes.status,
+        lighterRes.statusText
       );
       return { usd: null, raw: null };
     }
 
-    const data = await res.json();
+    const lighterData = await lighterRes.json();
 
-    // Lighter is a derivatives EXCHANGE; we want TOTAL exchange OI,
-    // not a single pair. CoinGecko derivatives exchange schema typically provides:
-    //  - open_interest_usd
-    //  - open_interest_btc
-    //  - bitcoin_price_usd
-    // We prefer USD if present, otherwise derive from BTC OI * BTC price.
-    const openInterestBtc =
-      typeof data?.open_interest_btc === "number"
-        ? data.open_interest_btc
-        : typeof data?.open_interest_btc_value === "number"
-        ? data.open_interest_btc_value
-        : null;
+    // open_interest_btc may be a number or a string; normalize to a number
+    const oiBtcRaw = lighterData?.open_interest_btc;
+    let oiBtc: number | null = null;
 
-    const btcPriceUsd =
-      typeof data?.bitcoin_price_usd === "number"
-        ? data.bitcoin_price_usd
-        : typeof data?.btc_price_usd === "number"
-        ? data.btc_price_usd
-        : null;
-
-    let usd: number | null = null;
-
-    if (typeof data?.open_interest_usd === "number") {
-      usd = data.open_interest_usd;
-    } else if (
-      typeof openInterestBtc === "number" &&
-      typeof btcPriceUsd === "number"
-    ) {
-      usd = openInterestBtc * btcPriceUsd;
+    if (typeof oiBtcRaw === "number") {
+      oiBtc = oiBtcRaw;
+    } else if (typeof oiBtcRaw === "string") {
+      const parsed = parseFloat(oiBtcRaw);
+      oiBtc = Number.isFinite(parsed) ? parsed : null;
     }
 
+    if (oiBtc == null || !Number.isFinite(oiBtc)) {
+      console.warn("[CurrentOI] open_interest_btc is missing or invalid:", oiBtcRaw);
+      return { usd: null, raw: { lighter: lighterData } };
+    }
+
+    // 2) Fetch BTC price in USD using the simple price endpoint:
+    //    https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&x_cg_demo_api_key=KEY
+    const priceUrl =
+      "https://api.coingecko.com/api/v3/simple/price" +
+      "?ids=bitcoin&vs_currencies=usd" +
+      "&x_cg_demo_api_key=" +
+      encodeURIComponent(apiKey);
+
+    const priceRes = await fetch(priceUrl);
+
+    if (!priceRes.ok) {
+      console.error(
+        "[CurrentOI] CoinGecko price response not ok:",
+        priceRes.status,
+        priceRes.statusText
+      );
+      return { usd: null, raw: { lighter: lighterData } };
+    }
+
+    const priceData = await priceRes.json();
+    const btcUsdRaw = priceData?.bitcoin?.usd;
+    let btcUsd: number | null = null;
+
+    if (typeof btcUsdRaw === "number") {
+      btcUsd = btcUsdRaw;
+    } else if (typeof btcUsdRaw === "string") {
+      const parsed = parseFloat(btcUsdRaw);
+      btcUsd = Number.isFinite(parsed) ? parsed : null;
+    }
+
+    if (btcUsd == null || !Number.isFinite(btcUsd)) {
+      console.warn("[CurrentOI] BTC USD price is missing or invalid:", btcUsdRaw);
+      return { usd: null, raw: { lighter: lighterData, price: priceData } };
+    }
+
+    // 3) Compute OI in USD
+    const usdOi = oiBtc * btcUsd;
+
     return {
-      usd: Number.isFinite(usd as number) ? (usd as number) : null,
-      raw: data,
+      usd: Number.isFinite(usdOi) ? usdOi : null,
+      raw: { lighter: lighterData, price: priceData },
     };
   } catch (err) {
     console.error("[CurrentOI] failed to fetch from CoinGecko:", err);
