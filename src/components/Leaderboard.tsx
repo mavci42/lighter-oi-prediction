@@ -16,18 +16,17 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
-// Tahmin için TEK KAYNAK:
-// 1) strikePrice varsa onu kullan
-// 2) yoksa value'ya düş
-function getPredictionValue(p: any): number | null {
+function getDisplayPrediction(p: any): number | null {
   if (!p) return null;
 
-  if (p.strikePrice != null && Number.isFinite(Number(p.strikePrice))) {
-    return Number(p.strikePrice);
+  const sp = (p as any).strikePrice;
+  if (sp != null && Number.isFinite(Number(sp))) {
+    return Number(sp);
   }
 
-  if (p.value != null && Number.isFinite(Number(p.value))) {
-    return Number(p.value);
+  const v = (p as any).value;
+  if (v != null && Number.isFinite(Number(v))) {
+    return Number(v);
   }
 
   return null;
@@ -90,25 +89,22 @@ export default function Leaderboard() {
         if (cancelled) return;
 
         // On-chain event'leri LeaderboardPrediction formatına normalize et
-        const normalized = onchain
-          .map((p: any) => {
-            const pred = getPredictionValue(p);
-            if (pred == null) {
-              return null;
-            }
-            return {
-              id: p.txHash || p.id || `${p.user}-${p.createdAt}`,
-              address: p.user,
-              createdAt: p.createdAt,
-              round: 1,
-              value: pred, // grouping + display için
-              pnl: undefined,
-              score: undefined,
-              diff: undefined,
-              rank: undefined,
-            };
-          })
-          .filter((p): p is NonNullable<typeof p> => p != null);
+        const normalized: LeaderboardPrediction[] = onchain.map((p: any) => {
+          const strike = Number(p.strikePrice);
+          return {
+            id: p.txHash,
+            address: p.user,
+            createdAt: p.createdAt,
+            round: 1, // şimdilik hepsi Round 1
+            value: Number.isFinite(strike) ? strike : Number(p.value ?? 0),
+            pnl: undefined,
+            score: undefined,
+            diff: undefined,
+            rank: undefined,
+            // EKRANDA KULLANMAK ÜZERE ORİJİNAL strikePrice'ı da sakla
+            ...(Number.isFinite(strike) ? { strikePrice: strike } : {}),
+          } as LeaderboardPrediction;
+        });
 
         // Aynı gün + round + address için sadece SON tahmini bırak
         const byKey = new Map<string, LeaderboardPrediction>();
@@ -262,9 +258,6 @@ export default function Leaderboard() {
               .filter(Boolean)
               .join(" ");
 
-            const topPrediction = round.predictions[0];
-            const topPredictionValue = getPredictionValue(topPrediction) ?? 0;
-
             return (
               <article key={round.round} className={roundCardClassNames}>
                 {isEndedRound && (
@@ -279,18 +272,23 @@ export default function Leaderboard() {
 
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
-                  {topPrediction && topPredictionValue > 0 && (
-                    <WinnerRow
-                      rank={1}
-                      address={topPrediction.address || ""}
-                      predictionUsd={topPredictionValue}
-                    />
-                  )}
+                  {round.predictions.length > 0 && (() => {
+                    const first = round.predictions[0];
+                    const v = getDisplayPrediction(first);
+                    if (v == null) return null;
+
+                    return (
+                      <WinnerRow
+                        rank={1}
+                        address={first.address || ""}
+                        predictionUsd={v}
+                      />
+                    );
+                  })()}
                 </header>
 
                 <ol className="round-list">
                   {round.predictions.map((p, idx) => {
-                    const value = getPredictionValue(p);
 
                     return (
                       <li
@@ -309,18 +307,27 @@ export default function Leaderboard() {
                             {p.address ? shortAddress(p.address) : "Anon"}
                           </span>
 
-                          {value != null && (
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "#CBD5E1",
-                                fontFamily: "monospace",
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              {formatFullPrediction(value)}
-                            </div>
-                          )}
+                          {(() => {
+                            // Önce strikePrice, yoksa value kullan
+                            const rawPrediction = getDisplayPrediction(p);
+
+                            if (rawPrediction == null) {
+                              return null;
+                            }
+
+                            return (
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "#CBD5E1",
+                                  fontFamily: "monospace",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {formatFullPrediction(rawPrediction)}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </li>
                     );
