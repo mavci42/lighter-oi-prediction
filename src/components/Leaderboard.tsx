@@ -16,6 +16,20 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
+function getDisplayAddress(p: any): string {
+  if (!p) return "Anon";
+
+  // Prediction objesinde adresin gelebileceği alanları sırayla dene
+  const addr: string | undefined =
+    (p.address as string | undefined) ??
+    (p.user as string | undefined) ??
+    (p.wallet as string | undefined);
+
+  if (!addr) return "Anon";
+
+  return shortAddress(addr);
+}
+
 function formatRemaining(endAt: Date, nowMs: number): string {
   const diffMs = endAt.getTime() - nowMs;
   if (diffMs <= 0) return "00:00:00";
@@ -267,7 +281,7 @@ export default function Leaderboard() {
                         WINNER:
                       </span>
                       <span className="text-slate-50 font-semibold">
-                        {shortAddress(topPrediction.address || "")}
+                        {getDisplayAddress(topPrediction)}
                       </span>
                       <span className="text-[11px]">👑</span>
                     </div>
@@ -286,7 +300,7 @@ export default function Leaderboard() {
                         <span className="round-rank mr-1">#{idx + 1}</span>
                       )}
                       <span className="address-label">
-                        {p.address ? shortAddress(p.address) : "Anon"}
+                        {getDisplayAddress(p)}
                       </span>
                     </li>
                   ))}
