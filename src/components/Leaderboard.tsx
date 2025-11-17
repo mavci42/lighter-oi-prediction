@@ -16,22 +16,21 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
-// Tahmin içindeki SAYISAL alanlardan en büyüğünü seç
-// (örn: strikePrice, value, prediction, vs. hangisi varsa)
-function getLargestNumericField(obj: any): number | null {
-  if (!obj || typeof obj !== "object") return null;
-  const nums: number[] = [];
+// Tahmin için TEK KAYNAK:
+// 1) strikePrice varsa onu kullan
+// 2) yoksa value'ya düş
+function getPredictionValue(p: any): number | null {
+  if (!p) return null;
 
-  for (const key of Object.keys(obj)) {
-    const v = (obj as any)[key];
-    const n = Number(v);
-    if (Number.isFinite(n)) {
-      nums.push(n);
-    }
+  if (p.strikePrice != null && Number.isFinite(Number(p.strikePrice))) {
+    return Number(p.strikePrice);
   }
 
-  if (!nums.length) return null;
-  return nums.reduce((max, n) => (n > max ? n : max), nums[0]);
+  if (p.value != null && Number.isFinite(Number(p.value))) {
+    return Number(p.value);
+  }
+
+  return null;
 }
 
 // 1_835_777_555 -> "$1.835.777.555"
@@ -91,21 +90,25 @@ export default function Leaderboard() {
         if (cancelled) return;
 
         // On-chain event'leri LeaderboardPrediction formatına normalize et
-        const normalized: LeaderboardPrediction[] = onchain.map((p: any) => {
-          const bestNumber = getLargestNumericField(p) ?? 0;
-
-          return {
-            id: p.txHash || p.id || `${p.user}-${p.createdAt}`,
-            address: p.user,
-            createdAt: p.createdAt,
-            round: 1,
-            value: bestNumber, // grouping vs için
-            pnl: undefined,
-            score: undefined,
-            diff: undefined,
-            rank: undefined,
-          };
-        });
+        const normalized = onchain
+          .map((p: any) => {
+            const pred = getPredictionValue(p);
+            if (pred == null) {
+              return null;
+            }
+            return {
+              id: p.txHash || p.id || `${p.user}-${p.createdAt}`,
+              address: p.user,
+              createdAt: p.createdAt,
+              round: 1,
+              value: pred, // grouping + display için
+              pnl: undefined,
+              score: undefined,
+              diff: undefined,
+              rank: undefined,
+            };
+          })
+          .filter((p): p is NonNullable<typeof p> => p != null);
 
         // Aynı gün + round + address için sadece SON tahmini bırak
         const byKey = new Map<string, LeaderboardPrediction>();
@@ -260,8 +263,7 @@ export default function Leaderboard() {
               .join(" ");
 
             const topPrediction = round.predictions[0];
-            const topPredictionValue =
-              getLargestNumericField(topPrediction) ?? 0;
+            const topPredictionValue = getPredictionValue(topPrediction) ?? 0;
 
             return (
               <article key={round.round} className={roundCardClassNames}>
@@ -288,7 +290,7 @@ export default function Leaderboard() {
 
                 <ol className="round-list">
                   {round.predictions.map((p, idx) => {
-                    const value = getLargestNumericField(p);
+                    const value = getPredictionValue(p);
 
                     return (
                       <li
