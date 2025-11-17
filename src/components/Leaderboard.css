@@ -127,6 +127,7 @@
   border-radius: 999px;
   background-color: #1e5fff;  /* blue dot */
   box-shadow: 0 0 6px rgba(30, 95, 255, 0.8);
+  animation: live-dot-pulse 1s ease-in-out infinite;
 }
 
 /* Small text for "· x3" next to address */
@@ -160,6 +161,19 @@
   }
   100% {
     box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.0);
+  }
+}
+
+@keyframes live-dot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4);
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 1;
+    box-shadow: 0 0 8px 0 rgba(56, 189, 248, 0.9);
   }
 }
 
