@@ -86,6 +86,11 @@ export default function Leaderboard() {
       setError(null);
       try {
         const onchain = await fetchOnchainPredictions();
+        console.log(
+          "[DEBUG] onchain sample:",
+          onchain[0],
+          onchain[0] && Object.keys(onchain[0])
+        );
         if (cancelled) return;
 
         // On-chain event'leri LeaderboardPrediction formatına normalize et
