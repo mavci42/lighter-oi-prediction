@@ -30,6 +30,24 @@ const formatFullPrediction = (value: number) => {
   );
 };
 
+const getPredictionUsd = (prediction: any): number | null => {
+  if (!prediction) return null;
+
+  // 1) Önce strikePrice varsa onu kullan (on-chain live round için doğru alan)
+  const strike = (prediction as any).strikePrice;
+  if (strike != null && Number.isFinite(Number(strike))) {
+    return Number(strike);
+  }
+
+  // 2) Aksi halde value alanına düş (eski/ended round datası için)
+  const value = (prediction as any).value;
+  if (value != null && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+
+  return null;
+};
+
 type WinnerRowProps = {
   rank: number;
   address: string;
@@ -256,16 +274,7 @@ export default function Leaderboard() {
 
             // Winner prediction (ilk sıradaki)
             const topPrediction = round.predictions[0];
-            let topPredictionValue = 0;
-            if (topPrediction) {
-              const raw =
-                typeof topPrediction.value === "number"
-                  ? topPrediction.value
-                  : (topPrediction as any).strikePrice;
-              if (raw != null && Number.isFinite(Number(raw))) {
-                topPredictionValue = Number(raw);
-              }
-            }
+            const topPredictionValue = getPredictionUsd(topPrediction) ?? 0;
 
             return (
               <article key={round.round} className={roundCardClassNames}>
@@ -308,15 +317,9 @@ export default function Leaderboard() {
 
                         {(() => {
                           // Same logic as winner: value or strikePrice
-                          const rawPrediction =
-                            typeof p.value === "number"
-                              ? p.value
-                              : (p as any).strikePrice;
+                          const rawPrediction = getPredictionUsd(p);
 
-                          if (
-                            rawPrediction == null ||
-                            !Number.isFinite(Number(rawPrediction))
-                          ) {
+                          if (rawPrediction == null) {
                             return null;
                           }
 
@@ -329,7 +332,7 @@ export default function Leaderboard() {
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {formatFullPrediction(Number(rawPrediction))}
+                              {formatFullPrediction(rawPrediction)}
                             </div>
                           );
                         })()}
