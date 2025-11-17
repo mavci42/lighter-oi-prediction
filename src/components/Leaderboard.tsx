@@ -16,22 +16,10 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
-function getNormalizedAddress(p: any): string {
-  if (!p) return "";
-
-  // Prediction geldiği yere göre farklı alanlarda olabilir:
-  const addr: string | undefined =
-    (p.address as string | undefined) ??
-    (p.user as string | undefined) ??
-    (p.wallet as string | undefined);
-
-  return addr || "";
-}
-
 function getDisplayAddress(p: any): string {
-  const addr = getNormalizedAddress(p);
-  if (!addr) return "Anon";
-  return shortAddress(addr);
+  if (!p) return "Anon";
+  if (!p.address) return "Anon";
+  return shortAddress(p.address);
 }
 
 function formatRemaining(endAt: Date, nowMs: number): string {

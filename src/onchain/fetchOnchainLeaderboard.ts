@@ -68,21 +68,24 @@ export async function fetchOnchainPredictions(): Promise<OnchainPrediction[]> {
     console.log("[ONCHAIN] fetched logs count:", logs.length);
 
     return logs.map((log) => {
-      const { user, marketId, strikePrice, direction, timestamp } = log.args as any;
-      const ts = Number(timestamp);
-      const createdAt =
-        Number.isFinite(ts) && ts > 0
-          ? new Date(ts * 1000).toISOString()
-          : new Date().toISOString();
+      const args: any = log.args;
+      
+      const user: string = args.user;          // event'teki user
+      const marketId = args.marketId;
+      const strikePrice = args.strikePrice;
+      const direction = args.direction;
+      const timestamp = args.timestamp ?? args.createdAt ?? 0;
 
       return {
         txHash: log.transactionHash as `0x${string}`,
+        // EN ÖNEMLİ KISIM: address'i doğrudan user'dan set ediyoruz
+        address: user,
         user: user as `0x${string}`,
         marketId: marketId as bigint,
         strikePrice: strikePrice as bigint,
         direction: Number(direction),
-        timestamp: ts,
-        createdAt,
+        timestamp: Number(timestamp),
+        createdAt: new Date(Number(timestamp) * 1000).toISOString(),
       };
     });
   } catch (e) {
