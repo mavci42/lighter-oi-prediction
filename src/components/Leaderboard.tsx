@@ -7,17 +7,6 @@ import {
 import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
-function formatOiUsdShort(raw?: number | null): string {
-  if (raw == null || !Number.isFinite(raw)) return "-";
-  const value = Number(raw);
-  const abs = Math.abs(value);
-
-  if (abs >= 1_000_000_000) return (value / 1_000_000_000).toFixed(2) + "B";
-  if (abs >= 1_000_000) return (value / 1_000_000).toFixed(2) + "M";
-  if (abs >= 1_000) return (value / 1_000).toFixed(2) + "K";
-  return value.toFixed(0);
-}
-
 function shortAddress(addr?: string | null): string {
   if (!addr) return "-";
   const a = addr.trim();
@@ -29,6 +18,18 @@ function shortAddress(addr?: string | null): string {
   const end = a.slice(-3);      // e.g. "fc7"
   return `${start}...${end}`;
 }
+
+// Add the formatFullPrediction function
+const formatFullPrediction = (value: number) => {
+  return (
+    "$" +
+    new Intl.NumberFormat("tr-TR", {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+      useGrouping: true,
+    }).format(Math.round(value))
+  );
+};
 
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
@@ -271,9 +272,16 @@ export default function Leaderboard() {
                           }
 
                           return (
-                            <span className="prediction-label">
-                              {formatOiUsdShort(Number(rawPrediction))} OI
-                            </span>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "#CBD5E1",
+                                fontFamily: "monospace",
+                                whiteSpace: "nowrap"
+                              }}
+                            >
+                              {formatFullPrediction(Number(rawPrediction))}
+                            </div>
                           );
                         })()}
                       </div>
