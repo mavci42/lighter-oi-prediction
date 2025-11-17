@@ -16,66 +16,28 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
-function getDisplayPrediction(p: any): number | null {
-  if (!p) return null;
-
-  const sp = (p as any).strikePrice;
-  if (sp != null && Number.isFinite(Number(sp))) {
-    return Number(sp);
-  }
-
-  const v = (p as any).value;
-  if (v != null && Number.isFinite(Number(v))) {
-    return Number(v);
-  }
-
-  return null;
+function formatRemaining(endAt: Date, nowMs: number): string {
+  const diffMs = endAt.getTime() - nowMs;
+  if (diffMs <= 0) return "00:00:00";
+  const totalSec = Math.floor(diffMs / 1000);
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
 }
-
-// 1_835_777_555 -> "$1.835.777.555"
-const formatFullPrediction = (value: number) =>
-  "$" +
-  new Intl.NumberFormat("tr-TR", {
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-    useGrouping: true,
-  }).format(Math.round(value));
-
-type WinnerRowProps = {
-  address: string;
-  predictionUsd?: number | null;
-  showOi: boolean; // ENDED: true, LIVE: false
-};
-
-const WinnerRow: React.FC<WinnerRowProps> = ({
-  address,
-  predictionUsd,
-  showOi,
-}) => {
-  return (
-    <div className="mt-3 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-400/15 to-yellow-500/10 px-3 py-2 flex items-center justify-between border border-yellow-500/40">
-      {/* solda HER ZAMAN adres */}
-      <span className="text-[12px] font-medium text-slate-50 tracking-tight">
-        {shortAddress(address)}
-      </span>
-
-      {/* sağda SADECE ENDED round için OI */}
-      {showOi && predictionUsd != null && (
-        <span
-          className="text-[11px] font-mono text-slate-100"
-          style={{ whiteSpace: "nowrap" }}
-        >
-          {formatFullPrediction(predictionUsd)} OI
-        </span>
-      )}
-    </div>
-  );
-};
 
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,11 +224,24 @@ export default function Leaderboard() {
               .filter(Boolean)
               .join(" ");
 
+            const topPrediction = round.predictions[0] || null;
+
+            // LIVE kartı için kalan süreyi hesapla
+            let countdownText: string | null = null;
+            if (isActiveRound) {
+              // Round'un o günün sonunda biteceğini varsayıyoruz
+              const endAt = new Date(`${day.date}T23:59:59Z`);
+              countdownText = formatRemaining(endAt, now);
+            }
+
             return (
               <article key={round.round} className={roundCardClassNames}>
+                {/* ENDED badge */}
                 {isEndedRound && (
                   <span className="round-card__status-ribbon">ENDED</span>
                 )}
+
+                {/* LIVE badge */}
                 {isActiveRound && (
                   <div className="round-card__status-badge">
                     <span className="round-card__live-dot" />
@@ -274,86 +249,48 @@ export default function Leaderboard() {
                   </div>
                 )}
 
+                {/* HEADER */}
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
 
+                  {/* LIVE: sadece kalan süre */}
+                  {isActiveRound && countdownText && (
+                    <div className="mt-1 text-[11px] text-slate-300">
+                      <span>remaining time </span>
+                      <span className="font-mono text-slate-50">
+                        {countdownText}
+                      </span>
+                    </div>
+                  )}
+
                   {/* ENDED: WINNER satırı */}
-                  {isEndedRound && round.predictions.length > 0 && (
+                  {isEndedRound && topPrediction && (
                     <div className="mt-1 flex items-center gap-1 text-[11px]">
                       <span className="text-slate-300 font-medium">WINNER:</span>
                       <span className="text-slate-50 font-semibold">
-                        {shortAddress(round.predictions[0].address || "")}
+                        {shortAddress(topPrediction.address || "")}
                       </span>
                       <span className="text-[11px]">👑</span>
                     </div>
                   )}
-
-                  {/* LIVE: YALNIZCA geri sayım, winner yazısı YOK */}
-                  {isActiveRound && (
-                    <div className="mt-1 text-[11px] text-slate-300">
-                      Live round in progress
-                    </div>
-                  )}
                 </header>
 
-                {round.predictions.length > 0 && (() => {
-                  const topPrediction = round.predictions[0];
-                  const topValue = getDisplayPrediction(topPrediction);
-                  
-                  return (
-                    <WinnerRow
-                      address={topPrediction.address || ""}
-                      predictionUsd={topValue ?? null}
-                      showOi={isEndedRound} // ENDED → OI göster, LIVE → sadece adres
-                    />
-                  );
-                })()}
+                {/* PREDICTS BAŞLIĞI */}
+                <div className="mt-3 text-[11px] text-slate-300">Predicts</div>
 
-                <ol className="round-list">
-                  {round.predictions.map((p, idx) => {
-
-                    return (
-                      <li
-                        key={p.id}
-                        className={
-                          "round-row" +
-                          (idx === 0 ? " round-row--winner" : "") +
-                          (idx === 1 ? " round-row--second" : "") +
-                          (idx === 2 ? " round-row--third" : "")
-                        }
-                      >
-                        <span className="round-rank">#{idx + 1}</span>
-
-                        <div className="leaderboard-row-main">
-                          <span className="address-label">
-                            {p.address ? shortAddress(p.address) : "Anon"}
-                          </span>
-
-                          {(() => {
-                            // Önce strikePrice, yoksa value kullan
-                            const rawPrediction = getDisplayPrediction(p);
-
-                            if (rawPrediction == null) {
-                              return null;
-                            }
-
-                            return (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#CBD5E1",
-                                  fontFamily: "monospace",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {formatFullPrediction(rawPrediction)}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      </li>
-                    );
-                  })}
+                {/* PREDICTS LİSTESİ */}
+                <ol className="round-list mt-1">
+                  {round.predictions.map((p, idx) => (
+                    <li key={p.id} className="round-row">
+                      {/* ENDED: #1, #2 ... LIVE: sadece adres */}
+                      {isEndedRound && (
+                        <span className="round-rank mr-1">#{idx + 1}</span>
+                      )}
+                      <span className="address-label">
+                        {p.address ? shortAddress(p.address) : "Anon"}
+                      </span>
+                    </li>
+                  ))}
                 </ol>
               </article>
             );
