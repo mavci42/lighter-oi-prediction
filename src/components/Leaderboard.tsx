@@ -182,17 +182,14 @@ export default function Leaderboard() {
     );
   }
 
-  // En son gün + en yüksek round'u ACTIVE seç
+  // En son gün + en yüksek round = LIVE olarak kabul et
   const { latestDayKey, latestRoundNumber } = (() => {
-    if (!groups || groups.length === 0) {
-      return {
-        latestDayKey: null as string | null,
-        latestRoundNumber: null as number | null,
-      };
-    }
-    let latest = groups[0];
+    let latest: DayGroup | null = null;
     for (const g of groups) {
-      if (g.date > latest.date) latest = g;
+      if (!latest || g.date > latest.date) latest = g;
+    }
+    if (!latest) {
+      return { latestDayKey: null as string | null, latestRoundNumber: null as number | null };
     }
     let maxRound = 0;
     for (const r of latest.rounds) {
@@ -212,14 +209,14 @@ export default function Leaderboard() {
           <h3 className="day-title">{day.date}</h3>
 
           {day.rounds.map((round) => {
-            const isActiveRound =
+            const isLive =
               latestDayKey === day.date && latestRoundNumber === round.round;
-            const isEndedRound = !isActiveRound;
+            const isEnded = !isLive;
 
             const roundCardClassNames = [
               "round-card",
-              isActiveRound ? "round-card--active" : "",
-              isEndedRound ? "round-card--ended" : "",
+              isLive ? "round-card--active" : "",
+              isEnded ? "round-card--ended" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -228,21 +225,21 @@ export default function Leaderboard() {
 
             // LIVE kartı için kalan süreyi hesapla
             let countdownText: string | null = null;
-            if (isActiveRound) {
-              // Round'un o günün sonunda biteceğini varsayıyoruz
+            if (isLive) {
+              // round o günün sonunda bitiyor varsayımı
               const endAt = new Date(`${day.date}T23:59:59Z`);
               countdownText = formatRemaining(endAt, now);
             }
 
             return (
               <article key={round.round} className={roundCardClassNames}>
-                {/* ENDED badge */}
-                {isEndedRound && (
+                {/* ENDED ribbon */}
+                {isEnded && (
                   <span className="round-card__status-ribbon">ENDED</span>
                 )}
 
                 {/* LIVE badge */}
-                {isActiveRound && (
+                {isLive && (
                   <div className="round-card__status-badge">
                     <span className="round-card__live-dot" />
                     LIVE
@@ -253,20 +250,22 @@ export default function Leaderboard() {
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
 
-                  {/* LIVE: sadece kalan süre */}
-                  {isActiveRound && countdownText && (
+                  {/* LIVE: kalan süre */}
+                  {isLive && countdownText && (
                     <div className="mt-1 text-[11px] text-slate-300">
-                      <span>remaining time </span>
+                      remaining time{" "}
                       <span className="font-mono text-slate-50">
                         {countdownText}
                       </span>
                     </div>
                   )}
 
-                  {/* ENDED: WINNER satırı */}
-                  {isEndedRound && topPrediction && (
+                  {/* ENDED: winner */}
+                  {isEnded && topPrediction && (
                     <div className="mt-1 flex items-center gap-1 text-[11px]">
-                      <span className="text-slate-300 font-medium">WINNER:</span>
+                      <span className="text-slate-300 font-medium">
+                        WINNER:
+                      </span>
                       <span className="text-slate-50 font-semibold">
                         {shortAddress(topPrediction.address || "")}
                       </span>
@@ -282,8 +281,8 @@ export default function Leaderboard() {
                 <ol className="round-list mt-1">
                   {round.predictions.map((p, idx) => (
                     <li key={p.id} className="round-row">
-                      {/* ENDED: #1, #2 ... LIVE: sadece adres */}
-                      {isEndedRound && (
+                      {/* ENDED: #1, #2; LIVE: sadece adres */}
+                      {isEnded && (
                         <span className="round-rank mr-1">#{idx + 1}</span>
                       )}
                       <span className="address-label">
