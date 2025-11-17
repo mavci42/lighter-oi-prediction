@@ -42,33 +42,32 @@ const formatFullPrediction = (value: number) =>
   }).format(Math.round(value));
 
 type WinnerRowProps = {
-  rank: number;
   address: string;
-  predictionUsd: number;
+  predictionUsd?: number | null;
+  showOi: boolean; // ENDED: true, LIVE: false
 };
 
-// Sarı winner satırı: "#1  0x7...fc7  $1.835.777.555"
 const WinnerRow: React.FC<WinnerRowProps> = ({
-  rank,
   address,
   predictionUsd,
+  showOi,
 }) => {
   return (
     <div className="mt-3 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-400/15 to-yellow-500/10 px-3 py-2 flex items-center justify-between border border-yellow-500/40">
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-yellow-100 bg-yellow-500/30 px-2 py-0.5 rounded-full">
-          #{rank}
-        </span>
-        <span className="text-[12px] font-medium text-slate-50 tracking-tight">
-          {shortAddress(address)}
-        </span>
-      </div>
-      <span
-        className="text-[11px] font-mono text-slate-100"
-        style={{ whiteSpace: "nowrap" }}
-      >
-        {formatFullPrediction(predictionUsd)}
+      {/* solda HER ZAMAN adres */}
+      <span className="text-[12px] font-medium text-slate-50 tracking-tight">
+        {shortAddress(address)}
       </span>
+
+      {/* sağda SADECE ENDED round için OI */}
+      {showOi && predictionUsd != null && (
+        <span
+          className="text-[11px] font-mono text-slate-100"
+          style={{ whiteSpace: "nowrap" }}
+        >
+          {formatFullPrediction(predictionUsd)} OI
+        </span>
+      )}
     </div>
   );
 };
@@ -277,20 +276,38 @@ export default function Leaderboard() {
 
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
-                  {round.predictions.length > 0 && (() => {
-                    const first = round.predictions[0];
-                    const v = getDisplayPrediction(first);
-                    if (v == null) return null;
 
-                    return (
-                      <WinnerRow
-                        rank={1}
-                        address={first.address || ""}
-                        predictionUsd={v}
-                      />
-                    );
-                  })()}
+                  {/* ENDED: WINNER satırı */}
+                  {isEndedRound && round.predictions.length > 0 && (
+                    <div className="mt-1 flex items-center gap-1 text-[11px]">
+                      <span className="text-slate-300 font-medium">WINNER:</span>
+                      <span className="text-slate-50 font-semibold">
+                        {shortAddress(round.predictions[0].address || "")}
+                      </span>
+                      <span className="text-[11px]">👑</span>
+                    </div>
+                  )}
+
+                  {/* LIVE: YALNIZCA geri sayım, winner yazısı YOK */}
+                  {isActiveRound && (
+                    <div className="mt-1 text-[11px] text-slate-300">
+                      Live round in progress
+                    </div>
+                  )}
                 </header>
+
+                {round.predictions.length > 0 && (() => {
+                  const topPrediction = round.predictions[0];
+                  const topValue = getDisplayPrediction(topPrediction);
+                  
+                  return (
+                    <WinnerRow
+                      address={topPrediction.address || ""}
+                      predictionUsd={topValue ?? null}
+                      showOi={isEndedRound} // ENDED → OI göster, LIVE → sadece adres
+                    />
+                  );
+                })()}
 
                 <ol className="round-list">
                   {round.predictions.map((p, idx) => {
