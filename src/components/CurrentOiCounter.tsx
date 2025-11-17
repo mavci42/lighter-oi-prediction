@@ -6,7 +6,7 @@ type CurrentOiCounterProps = {
 };
 
 const formatCurrencyTrLong = (value: number) => {
-  // 1731286402 -> "$1.731.286.402"
+  // 1814816024 -> "$1.814.816.024"
   return (
     "$" +
     new Intl.NumberFormat("tr-TR", {
@@ -26,41 +26,58 @@ export const CurrentOiCounter: React.FC<CurrentOiCounterProps> = ({
   const containerStyle: React.CSSProperties = {
     width: "100%",
     borderRadius: 16,
-    border: "1px solid rgba(254, 202, 202, 1)", // yumuşak kırmızı çerçeve
-    backgroundColor: "#FFE4E6", // pastel açık kırmızı
+    border: "1px solid rgba(31, 41, 55, 1)", // koyu gri çerçeve (theme'e uygun)
+    background:
+      "linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(17,24,39,1) 40%, rgba(30,64,175,0.35) 100%)",
     padding: "12px 16px",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.45)",
     boxSizing: "border-box",
   };
 
-  const numberChipStyle: React.CSSProperties = {
+  const trackStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "6px 8px",
+    borderRadius: 10,
+    backgroundColor: "#020617", // çok koyu şerit (odometre rayı)
+    border: "1px solid rgba(75, 85, 99, 0.8)",
+    boxShadow: "inset 0 0 4px rgba(0,0,0,0.9)",
+  };
+
+  const digitBoxStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 999,
-    padding: "6px 14px",
-    backgroundColor: "#FB7185", // daha koyu kırmızı şerit
-    marginBottom: 4,
+    minWidth: 18,
+    height: 26,
+    marginRight: 2,
+    borderRadius: 4,
+    backgroundColor: "#020617",
+    border: "1px solid rgba(55, 65, 81, 0.9)",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.7)",
   };
 
-  const numberTextStyle: React.CSSProperties = {
+  const digitTextStyle: React.CSSProperties = {
     fontFamily: "monospace",
-    fontSize: "18px",
-    letterSpacing: "0.12em",
-    color: "#FEF2F2",
+    fontSize: 16,
+    color: "#E5E7EB",
     lineHeight: 1,
-    whiteSpace: "nowrap",
   };
 
   const labelStyle: React.CSSProperties = {
-    fontSize: "12px",
-    color: "#9F1239", // koyu kırmızı ton
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9CA3AF", // nötr gri label
   };
 
   return (
     <div style={containerStyle}>
-      <div style={numberChipStyle}>
-        <span style={numberTextStyle}>{formatted}</span>
+      <div style={trackStyle}>
+        {formatted.split("").map((ch, idx) => (
+          <div key={idx} style={digitBoxStyle}>
+            <span style={digitTextStyle}>{ch}</span>
+          </div>
+        ))}
       </div>
       <div>
         <span style={labelStyle}>{label}</span>
