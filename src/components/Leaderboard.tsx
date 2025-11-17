@@ -18,8 +18,36 @@ function shortAddress(addr?: string | null): string {
 
 function getDisplayAddress(p: any): string {
   if (!p) return "Anon";
-  if (!p.address) return "Anon";
-  return shortAddress(p.address);
+
+  let candidate: string | null = null;
+
+  for (const [key, value] of Object.entries(p)) {
+    if (typeof value !== "string") continue;
+    if (!value.startsWith("0x")) continue;
+    if (value.length < 10) continue; // "0x...", "0x" gibi saçma şeyleri ele
+
+    const lowerKey = key.toLowerCase();
+
+    // Adres olma ihtimali yüksek alan adları
+    const isLikelyAddressKey =
+      lowerKey.includes("user") ||
+      lowerKey.includes("address") ||
+      lowerKey.includes("wallet");
+
+    if (isLikelyAddressKey) {
+      candidate = value;
+      break; // en iyi eşleşmeyi bulduk
+    }
+
+    // Henüz aday yoksa, ilk uygun hex-string'i fallback olarak sakla
+    if (!candidate) {
+      candidate = value;
+    }
+  }
+
+  if (!candidate) return "Anon";
+
+  return shortAddress(candidate);
 }
 
 function formatRemaining(endAt: Date, nowMs: number): string {
@@ -294,7 +322,7 @@ export default function Leaderboard() {
                         <span className="round-rank mr-1">#{idx + 1}</span>
                       )}
                       <span className="address-label">
-                        {p.address ? shortAddress(p.address) : "Anon"}
+                        {getDisplayAddress(p)}
                       </span>
                     </li>
                   ))}
