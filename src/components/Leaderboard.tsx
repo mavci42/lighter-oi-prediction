@@ -73,20 +73,22 @@ export default function Leaderboard() {
         if (cancelled) return;
 
         // On-chain event'leri LeaderboardPrediction formatına normalize et
-        const normalized: LeaderboardPrediction[] = onchain.map((p: any) => {
-          const strike = Number(p.strikePrice);
+        const onchainNormalized: LeaderboardPrediction[] = onchain.map((p: any) => {
+          // user / address / wallet vs. nereden geliyorsa, tek adrese topla
+          const rawAddress: string =
+            p.address ||
+            p.user ||
+            p.wallet ||
+            "";
+
           return {
             id: p.txHash,
-            address: p.user,
+            address: rawAddress,
             createdAt: p.createdAt,
-            round: 1, // şimdilik hepsi Round 1
-            value: Number.isFinite(strike) ? strike : Number(p.value ?? 0),
-            pnl: undefined,
-            score: undefined,
-            diff: undefined,
-            rank: undefined,
-            // EKRANDA KULLANMAK ÜZERE ORİJİNAL strikePrice'ı da sakla
-            ...(Number.isFinite(strike) ? { strikePrice: strike } : {}),
+            round: 1,
+            value: Number(p.strikePrice),
+            marketId: p.marketId,
+            direction: p.direction,
           } as LeaderboardPrediction;
         });
 
@@ -94,7 +96,7 @@ export default function Leaderboard() {
         const byKey = new Map<string, LeaderboardPrediction>();
         const countByKey = new Map<string, number>();
 
-        for (const p of normalized) {
+        for (const p of onchainNormalized) {
           const day = p.createdAt.split("T")[0]; // YYYY-MM-DD
           const address = (p.address || "").toLowerCase();
           const key = `${day}-${p.round}-${address}`;
@@ -304,7 +306,7 @@ export default function Leaderboard() {
                         <span className="round-rank mr-1">#{idx + 1}</span>
                       )}
                       <span className="address-label">
-                        {getDisplayAddress(p)}
+                        {p.address ? shortAddress(p.address) : "Anon"}
                       </span>
                     </li>
                   ))}
