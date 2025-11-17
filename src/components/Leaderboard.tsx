@@ -13,26 +13,13 @@ function shortAddress(addr?: string | null): string {
   if (a.length <= 10) return a;
 
   // We want something like: 0x7...fc7
-  // take the first 3 chars and last 3 chars
-  const start = a.slice(0, 3);   // e.g. "0x7"
-  const end = a.slice(-3);      // e.g. "fc7"
+  const start = a.slice(0, 3); // e.g. "0x7"
+  const end = a.slice(-3); // e.g. "fc7"
   return `${start}...${end}`;
 }
 
-// Add the formatFullPrediction function
+// Full USD prediction formatter: 1835777555 -> "$1.835.777.555"
 const formatFullPrediction = (value: number) => {
-  return (
-    "$" +
-    new Intl.NumberFormat("tr-TR", {
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0,
-      useGrouping: true,
-    }).format(Math.round(value))
-  );
-};
-
-// Add the formatFullPredictionUsd function
-const formatFullPredictionUsd = (value: number) => {
   return (
     "$" +
     new Intl.NumberFormat("tr-TR", {
@@ -49,6 +36,7 @@ type WinnerRowProps = {
   predictionUsd: number;
 };
 
+// Sarı winner satırı: "#1  0x7...fc7  $1.835.777.555"
 const WinnerRow: React.FC<WinnerRowProps> = ({
   rank,
   address,
@@ -68,7 +56,7 @@ const WinnerRow: React.FC<WinnerRowProps> = ({
         className="text-[11px] font-mono text-slate-100"
         style={{ whiteSpace: "nowrap" }}
       >
-        {formatFullPredictionUsd(predictionUsd)}
+        {formatFullPrediction(predictionUsd)}
       </span>
     </div>
   );
@@ -128,7 +116,9 @@ export default function Leaderboard() {
         }
 
         // 2) Create unique predictions list with predictionCount attached
-        const uniquePredictions: LeaderboardPrediction[] = Array.from(byKey.values())
+        const uniquePredictions: LeaderboardPrediction[] = Array.from(
+          byKey.values()
+        )
           .map((p) => {
             const day = p.createdAt.split("T")[0];
             const address = (p.address || "").toLowerCase();
@@ -220,7 +210,10 @@ export default function Leaderboard() {
   // Compute the ACTIVE round robustly (max date and max round number)
   const { latestDayKey, latestRoundNumber } = (() => {
     if (!groups || groups.length === 0) {
-      return { latestDayKey: null as string | null, latestRoundNumber: null as number | null };
+      return {
+        latestDayKey: null as string | null,
+        latestRoundNumber: null as number | null,
+      };
     }
 
     // Find the latest date string
@@ -261,6 +254,19 @@ export default function Leaderboard() {
               .filter(Boolean)
               .join(" ");
 
+            // Winner prediction (ilk sıradaki)
+            const topPrediction = round.predictions[0];
+            let topPredictionValue = 0;
+            if (topPrediction) {
+              const raw =
+                typeof topPrediction.value === "number"
+                  ? topPrediction.value
+                  : (topPrediction as any).strikePrice;
+              if (raw != null && Number.isFinite(Number(raw))) {
+                topPredictionValue = Number(raw);
+              }
+            }
+
             return (
               <article key={round.round} className={roundCardClassNames}>
                 {isEndedRound && (
@@ -274,11 +280,11 @@ export default function Leaderboard() {
                 )}
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
-                  {round.predictions.length > 0 && (
+                  {topPrediction && (
                     <WinnerRow
                       rank={1}
-                      address={round.predictions[0].address || ""}
-                      predictionUsd={Number(round.predictions[0].value || 0)}
+                      address={topPrediction.address || ""}
+                      predictionUsd={topPredictionValue}
                     />
                   )}
                 </header>
@@ -294,22 +300,23 @@ export default function Leaderboard() {
                       }
                     >
                       <span className="round-rank">#{idx + 1}</span>
-                      
+
                       <div className="leaderboard-row-main">
                         <span className="address-label">
-                          {p.address
-                            ? shortAddress(p.address)
-                            : "Anon"}
+                          {p.address ? shortAddress(p.address) : "Anon"}
                         </span>
 
                         {(() => {
-                          // Prefer entry.value as the numeric prediction, fallback to strikePrice if present
+                          // Same logic as winner: value or strikePrice
                           const rawPrediction =
                             typeof p.value === "number"
                               ? p.value
                               : (p as any).strikePrice;
 
-                          if (rawPrediction == null || !Number.isFinite(Number(rawPrediction))) {
+                          if (
+                            rawPrediction == null ||
+                            !Number.isFinite(Number(rawPrediction))
+                          ) {
                             return null;
                           }
 
@@ -319,7 +326,7 @@ export default function Leaderboard() {
                                 fontSize: 11,
                                 color: "#CBD5E1",
                                 fontFamily: "monospace",
-                                whiteSpace: "nowrap"
+                                whiteSpace: "nowrap",
                               }}
                             >
                               {formatFullPrediction(Number(rawPrediction))}
@@ -328,22 +335,10 @@ export default function Leaderboard() {
                         })()}
                       </div>
 
-                      {p.value != null && (
-                        <span className="round-value">
-                          ${(p.value / 1e6).toFixed(2)}M
-                        </span>
-                      )}
-                      {p.diff != null ? (
-                        <span className="round-score">
-                          {p.diff != null
-                            ? `Δ ${(Math.abs(p.diff) / 1e6).toFixed(2)}M`
-                            : p.pnl != null
-                            ? `${p.pnl.toFixed(2)}%`
-                            : p.score != null
-                            ? p.score.toFixed(2)
-                            : ""}
-                        </span>
-                      ) : null}
+                      {/* round-value ve round-score KALDIRILDI.
+                          Böylece satır tam olarak:
+                          #1  0x7...fc7  $1.835.777.555
+                          formatında olur. */}
                     </li>
                   ))}
                 </ol>
