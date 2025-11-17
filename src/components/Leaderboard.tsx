@@ -31,6 +31,18 @@ const formatFullPrediction = (value: number) => {
   );
 };
 
+// Add the formatFullPredictionUsd function
+const formatFullPredictionUsd = (value: number) => {
+  return (
+    "$" +
+    new Intl.NumberFormat("tr-TR", {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+      useGrouping: true,
+    }).format(Math.round(value))
+  );
+};
+
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -232,11 +244,21 @@ export default function Leaderboard() {
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
                   {round.predictions.length > 0 && (
-                    <div className="round-subtitle">
-                      Winner:{" "}
-                      {round.predictions[0]?.address
-                        ? shortAddress(round.predictions[0].address)
-                        : "-"}
+                    <div className="mt-3 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-400/15 to-yellow-500/10 px-3 py-2 flex items-center justify-between border border-yellow-500/40">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold text-yellow-100 bg-yellow-500/30 px-2 py-0.5 rounded-full">
+                          #1
+                        </span>
+                        <span className="text-[12px] font-medium text-slate-50 tracking-tight">
+                          {shortAddress(round.predictions[0].address)}
+                        </span>
+                      </div>
+                      <span
+                        className="text-[11px] font-mono text-slate-100"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        {formatFullPredictionUsd(Number(round.predictions[0].value || 0))}
+                      </span>
                     </div>
                   )}
                 </header>
