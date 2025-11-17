@@ -16,17 +16,21 @@ function shortAddress(addr?: string | null): string {
   return `${start}...${end}`;
 }
 
-function getDisplayAddress(p: any): string {
-  if (!p) return "Anon";
+function getNormalizedAddress(p: any): string {
+  if (!p) return "";
 
-  // Prediction objesinde adresin gelebileceği alanları sırayla dene
+  // Prediction geldiği yere göre farklı alanlarda olabilir:
   const addr: string | undefined =
     (p.address as string | undefined) ??
     (p.user as string | undefined) ??
     (p.wallet as string | undefined);
 
-  if (!addr) return "Anon";
+  return addr || "";
+}
 
+function getDisplayAddress(p: any): string {
+  const addr = getNormalizedAddress(p);
+  if (!addr) return "Anon";
   return shortAddress(addr);
 }
 

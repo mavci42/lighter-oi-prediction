@@ -66,9 +66,24 @@ function getScoreValue(p: LeaderboardPrediction): number {
 export function groupPredictionsByDayAndRound(
   predictions: LeaderboardPrediction[]
 ): DayGroup[] {
+  // Önce address alanını normalize et
+  const normalizedPredictions = predictions.map((p) => {
+    // Try to get address from various possible fields
+    const addr = 
+      (p as any).address ||
+      (p as any).user ||
+      (p as any).wallet ||
+      "";
+    
+    return {
+      ...p,
+      address: addr || (p as any).address, // varsa override et, yoksa bırak
+    } as LeaderboardPrediction & { [key: string]: any };
+  });
+
   const byDay = new Map<string, LeaderboardPrediction[]>();
 
-  for (const p of predictions) {
+  for (const p of normalizedPredictions) {
     const key = getDayKey(p.createdAt);
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key)!.push(p);
