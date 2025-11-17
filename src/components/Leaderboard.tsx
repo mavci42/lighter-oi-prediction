@@ -43,6 +43,37 @@ const formatFullPredictionUsd = (value: number) => {
   );
 };
 
+type WinnerRowProps = {
+  rank: number;
+  address: string;
+  predictionUsd: number;
+};
+
+const WinnerRow: React.FC<WinnerRowProps> = ({
+  rank,
+  address,
+  predictionUsd,
+}) => {
+  return (
+    <div className="mt-3 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-400/15 to-yellow-500/10 px-3 py-2 flex items-center justify-between border border-yellow-500/40">
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-yellow-100 bg-yellow-500/30 px-2 py-0.5 rounded-full">
+          #{rank}
+        </span>
+        <span className="text-[12px] font-medium text-slate-50 tracking-tight">
+          {shortAddress(address)}
+        </span>
+      </div>
+      <span
+        className="text-[11px] font-mono text-slate-100"
+        style={{ whiteSpace: "nowrap" }}
+      >
+        {formatFullPredictionUsd(predictionUsd)}
+      </span>
+    </div>
+  );
+};
+
 export default function Leaderboard() {
   const [groups, setGroups] = useState<DayGroup[]>([]);
   const [loading, setLoading] = useState(false);
@@ -244,22 +275,11 @@ export default function Leaderboard() {
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
                   {round.predictions.length > 0 && (
-                    <div className="mt-3 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-400/15 to-yellow-500/10 px-3 py-2 flex items-center justify-between border border-yellow-500/40">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold text-yellow-100 bg-yellow-500/30 px-2 py-0.5 rounded-full">
-                          #1
-                        </span>
-                        <span className="text-[12px] font-medium text-slate-50 tracking-tight">
-                          {shortAddress(round.predictions[0].address)}
-                        </span>
-                      </div>
-                      <span
-                        className="text-[11px] font-mono text-slate-100"
-                        style={{ whiteSpace: "nowrap" }}
-                      >
-                        {formatFullPredictionUsd(Number(round.predictions[0].value || 0))}
-                      </span>
-                    </div>
+                    <WinnerRow
+                      rank={1}
+                      address={round.predictions[0].address || ""}
+                      predictionUsd={Number(round.predictions[0].value || 0)}
+                    />
                   )}
                 </header>
                 <ol className="round-list">
