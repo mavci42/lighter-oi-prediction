@@ -11,42 +11,37 @@ function shortAddress(addr?: string | null): string {
   if (!addr) return "-";
   const a = addr.trim();
   if (a.length <= 10) return a;
-
-  // We want something like: 0x7...fc7
-  const start = a.slice(0, 3); // e.g. "0x7"
-  const end = a.slice(-3); // e.g. "fc7"
+  const start = a.slice(0, 3);
+  const end = a.slice(-3);
   return `${start}...${end}`;
 }
 
-// Full USD prediction formatter: 1835777555 -> "$1.835.777.555"
-const formatFullPrediction = (value: number) => {
-  return (
-    "$" +
-    new Intl.NumberFormat("tr-TR", {
-      maximumFractionDigits: 0,
-      minimumFractionDigits: 0,
-      useGrouping: true,
-    }).format(Math.round(value))
-  );
-};
+// Tahmin içindeki SAYISAL alanlardan en büyüğünü seç
+// (örn: strikePrice, value, prediction, vs. hangisi varsa)
+function getLargestNumericField(obj: any): number | null {
+  if (!obj || typeof obj !== "object") return null;
+  const nums: number[] = [];
 
-const getPredictionUsd = (prediction: any): number | null => {
-  if (!prediction) return null;
-
-  // 1) Önce strikePrice varsa onu kullan (on-chain live round için doğru alan)
-  const strike = (prediction as any).strikePrice;
-  if (strike != null && Number.isFinite(Number(strike))) {
-    return Number(strike);
+  for (const key of Object.keys(obj)) {
+    const v = (obj as any)[key];
+    const n = Number(v);
+    if (Number.isFinite(n)) {
+      nums.push(n);
+    }
   }
 
-  // 2) Aksi halde value alanına düş (eski/ended round datası için)
-  const value = (prediction as any).value;
-  if (value != null && Number.isFinite(Number(value))) {
-    return Number(value);
-  }
+  if (!nums.length) return null;
+  return nums.reduce((max, n) => (n > max ? n : max), nums[0]);
+}
 
-  return null;
-};
+// 1_835_777_555 -> "$1.835.777.555"
+const formatFullPrediction = (value: number) =>
+  "$" +
+  new Intl.NumberFormat("tr-TR", {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    useGrouping: true,
+  }).format(Math.round(value));
 
 type WinnerRowProps = {
   rank: number;
@@ -95,20 +90,24 @@ export default function Leaderboard() {
         const onchain = await fetchOnchainPredictions();
         if (cancelled) return;
 
-        // 1) On-chain event'leri LeaderboardPrediction formatına çevir
-        const normalized: LeaderboardPrediction[] = onchain.map((p) => ({
-          id: p.txHash,
-          address: p.user,
-          createdAt: p.createdAt,
-          round: 1, // şimdilik hepsi Round 1
-          value: Number(p.strikePrice),
-          pnl: undefined,
-          score: undefined,
-          diff: undefined,
-          rank: undefined,
-        }));
+        // On-chain event'leri LeaderboardPrediction formatına normalize et
+        const normalized: LeaderboardPrediction[] = onchain.map((p: any) => {
+          const bestNumber = getLargestNumericField(p) ?? 0;
 
-        // 1) Count how many predictions each address made per day+round
+          return {
+            id: p.txHash || p.id || `${p.user}-${p.createdAt}`,
+            address: p.user,
+            createdAt: p.createdAt,
+            round: 1,
+            value: bestNumber, // grouping vs için
+            pnl: undefined,
+            score: undefined,
+            diff: undefined,
+            rank: undefined,
+          };
+        });
+
+        // Aynı gün + round + address için sadece SON tahmini bırak
         const byKey = new Map<string, LeaderboardPrediction>();
         const countByKey = new Map<string, number>();
 
@@ -117,14 +116,12 @@ export default function Leaderboard() {
           const address = (p.address || "").toLowerCase();
           const key = `${day}-${p.round}-${address}`;
 
-          // increase count for this (day, round, address)
           countByKey.set(key, (countByKey.get(key) ?? 0) + 1);
 
           const existing = byKey.get(key);
           if (!existing) {
             byKey.set(key, p);
           } else {
-            // keep the latest prediction in time
             const existingTs = new Date(existing.createdAt).getTime();
             const currentTs = new Date(p.createdAt).getTime();
             if (currentTs > existingTs) {
@@ -133,7 +130,6 @@ export default function Leaderboard() {
           }
         }
 
-        // 2) Create unique predictions list with predictionCount attached
         const uniquePredictions: LeaderboardPrediction[] = Array.from(
           byKey.values()
         )
@@ -152,11 +148,9 @@ export default function Leaderboard() {
               new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
 
-        // 3) Then use uniquePredictions in groupPredictionsByDayAndRound(...)
+        // Gün / round gruplama
         const grouped = groupPredictionsByDayAndRound(uniquePredictions);
 
-        // Günler için global round numarası ata:
-        // En eski gün = Round 1, sonra 2, 3...
         const sortedByDateAsc = [...grouped].sort((a, b) =>
           a.date.localeCompare(b.date)
         );
@@ -165,8 +159,6 @@ export default function Leaderboard() {
           dayRoundIndex.set(day.date, idx + 1);
         });
 
-        // Her günün içindeki round'ların round numarasını
-        // o güne atanmış global round ile değiştir
         const groupedWithRounds = grouped.map((day) => ({
           ...day,
           rounds: day.rounds.map((round) => ({
@@ -225,7 +217,7 @@ export default function Leaderboard() {
     );
   }
 
-  // Compute the ACTIVE round robustly (max date and max round number)
+  // En son gün + en yüksek round'u ACTIVE seç
   const { latestDayKey, latestRoundNumber } = (() => {
     if (!groups || groups.length === 0) {
       return {
@@ -233,32 +225,27 @@ export default function Leaderboard() {
         latestRoundNumber: null as number | null,
       };
     }
-
-    // Find the latest date string
     let latest = groups[0];
     for (const g of groups) {
-      if (g.date > latest.date) {
-        latest = g;
-      }
+      if (g.date > latest.date) latest = g;
     }
-
-    // Within that day, find the highest round number
     let maxRound = 0;
     for (const r of latest.rounds) {
       if (typeof r.round === "number" && r.round > maxRound) {
         maxRound = r.round;
       }
     }
-
     return { latestDayKey: latest.date, latestRoundNumber: maxRound };
   })();
 
   return (
     <div className="leaderboard">
       <h2 className="leaderboard-title">Leaderboard</h2>
+
       {groups.map((day) => (
         <section key={day.date} className="day-section">
           <h3 className="day-title">{day.date}</h3>
+
           {day.rounds.map((round) => {
             const isActiveRound =
               latestDayKey === day.date && latestRoundNumber === round.round;
@@ -272,9 +259,9 @@ export default function Leaderboard() {
               .filter(Boolean)
               .join(" ");
 
-            // Winner prediction (ilk sıradaki)
             const topPrediction = round.predictions[0];
-            const topPredictionValue = getPredictionUsd(topPrediction) ?? 0;
+            const topPredictionValue =
+              getLargestNumericField(topPrediction) ?? 0;
 
             return (
               <article key={round.round} className={roundCardClassNames}>
@@ -287,9 +274,10 @@ export default function Leaderboard() {
                     LIVE
                   </div>
                 )}
+
                 <header className="round-header">
                   <div className="round-title">Round {round.round}</div>
-                  {topPrediction && (
+                  {topPrediction && topPredictionValue > 0 && (
                     <WinnerRow
                       rank={1}
                       address={topPrediction.address || ""}
@@ -297,33 +285,29 @@ export default function Leaderboard() {
                     />
                   )}
                 </header>
+
                 <ol className="round-list">
-                  {round.predictions.map((p, idx) => (
-                    <li
-                      key={p.id}
-                      className={
-                        "round-row" +
-                        (idx === 0 ? " round-row--winner" : "") +
-                        (idx === 1 ? " round-row--second" : "") +
-                        (idx === 2 ? " round-row--third" : "")
-                      }
-                    >
-                      <span className="round-rank">#{idx + 1}</span>
+                  {round.predictions.map((p, idx) => {
+                    const value = getLargestNumericField(p);
 
-                      <div className="leaderboard-row-main">
-                        <span className="address-label">
-                          {p.address ? shortAddress(p.address) : "Anon"}
-                        </span>
+                    return (
+                      <li
+                        key={p.id}
+                        className={
+                          "round-row" +
+                          (idx === 0 ? " round-row--winner" : "") +
+                          (idx === 1 ? " round-row--second" : "") +
+                          (idx === 2 ? " round-row--third" : "")
+                        }
+                      >
+                        <span className="round-rank">#{idx + 1}</span>
 
-                        {(() => {
-                          // Same logic as winner: value or strikePrice
-                          const rawPrediction = getPredictionUsd(p);
+                        <div className="leaderboard-row-main">
+                          <span className="address-label">
+                            {p.address ? shortAddress(p.address) : "Anon"}
+                          </span>
 
-                          if (rawPrediction == null) {
-                            return null;
-                          }
-
-                          return (
+                          {value != null && (
                             <div
                               style={{
                                 fontSize: 11,
@@ -332,18 +316,13 @@ export default function Leaderboard() {
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {formatFullPrediction(rawPrediction)}
+                              {formatFullPrediction(value)}
                             </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* round-value ve round-score KALDIRILDI.
-                          Böylece satır tam olarak:
-                          #1  0x7...fc7  $1.835.777.555
-                          formatında olur. */}
-                    </li>
-                  ))}
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ol>
               </article>
             );
