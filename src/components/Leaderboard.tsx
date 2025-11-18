@@ -97,22 +97,25 @@ export default function Leaderboard() {
         if (cancelled) return;
 
         // On-chain event'leri LeaderboardPrediction formatına normalize et
-        const onchainNormalized: LeaderboardPrediction[] = onchain.map((p: any) => {
-          // user / address / wallet vs. nereden geliyorsa, tek adrese topla
-          const fullAddress =
-            (p.address as string | undefined) ??
-            (p.user as string | undefined) ??
-            (p.wallet as string | undefined) ??
-            "";
+        const onchainNormalized: LeaderboardPrediction[] = onchain.map((p) => {
+          const fullAddress = p.user as `0x${string}`; // PredictionSubmitted event'teki user
 
           return {
             id: p.txHash,
-            address: fullAddress,         // KESİNLİKLE shortAddress ÇAĞIRMA
+            // TAM ADRES: Burada kesinlikle shortAddress KULLANMIYORUZ
+            address: fullAddress,
+            // user alanını boş bırakmak istemiyorsan, sadece username info olmadığı için
+            // string yerine basit bir object de verebilirsin ama şart değil:
+            // user: { username: fullAddress, displayName: fullAddress },
+
             createdAt: p.createdAt,
-            round: 1,
+            // Round bilgisi kontrattan gelmiyorsa şimdilik 1 bırakılabilir
+            // veya backend'in gönderdiği round mantığına göre doldurulabilir
+            round: Number(p.marketId ?? 1), // sende başka mantık varsa onu koru
+
+            // UI'da kullandığın diğer alanlar:
             value: Number(p.strikePrice),
-            marketId: p.marketId,
-            direction: p.direction,
+            predictionCount: 1,
           } as LeaderboardPrediction;
         });
 
