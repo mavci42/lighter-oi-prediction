@@ -327,11 +327,19 @@ export default function Leaderboard() {
 
                   {/* LIVE: adresleri sakla, sadece açıklama göster */}
                   {isLive && (
-                    <li className="round-row">
-                      <span className="text-[11px] text-slate-300">
-                        Predictions are hidden while the round is live.
-                      </span>
-                    </li>
+                    <>
+                      {round.predictions.map((p, idx) => {
+                        if (idx === 0) {
+                          console.log("[LIVE_PREDICTION_RAW]", p);
+                        }
+                        return null;
+                      })}
+                      <li className="round-row">
+                        <span className="text-[11px] text-slate-300">
+                          Predictions are hidden while the round is live.
+                        </span>
+                      </li>
+                    </>
                   )}
                 </ol>
               </article>
