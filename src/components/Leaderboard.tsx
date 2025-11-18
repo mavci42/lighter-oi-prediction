@@ -99,15 +99,15 @@ export default function Leaderboard() {
         // On-chain event'leri LeaderboardPrediction formatına normalize et
         const onchainNormalized: LeaderboardPrediction[] = onchain.map((p: any) => {
           // user / address / wallet vs. nereden geliyorsa, tek adrese topla
-          const rawAddress: string =
-            p.address ||
-            p.user ||
-            p.wallet ||
+          const fullAddress =
+            (p.address as string | undefined) ??
+            (p.user as string | undefined) ??
+            (p.wallet as string | undefined) ??
             "";
 
           return {
             id: p.txHash,
-            address: rawAddress,
+            address: fullAddress,         // KESİNLİKLE shortAddress ÇAĞIRMA
             createdAt: p.createdAt,
             round: 1,
             value: Number(p.strikePrice),
