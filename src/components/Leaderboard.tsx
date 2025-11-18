@@ -253,14 +253,19 @@ export default function Leaderboard() {
           <h3 className="day-title">{day.date}</h3>
 
           {day.rounds.map((round) => {
-            const isLive =
+            const isLatestRound =
               latestDayKey === day.date && latestRoundNumber === round.round;
-            const isEnded = !isLive;
+
+            const endAt = new Date(`${day.date}T23:59:59Z`);
+            const remainingMs = endAt.getTime() - now;
+
+            const isActiveRound = isLatestRound && remainingMs > 0;
+            const isEndedRound = !isActiveRound;
 
             const roundCardClassNames = [
               "round-card",
-              isLive ? "round-card--active" : "",
-              isEnded ? "round-card--ended" : "",
+              isActiveRound ? "round-card--active" : "",
+              isEndedRound ? "round-card--ended" : "",
             ]
               .filter(Boolean)
               .join(" ");
@@ -269,21 +274,19 @@ export default function Leaderboard() {
 
             // LIVE kartı için kalan süreyi hesapla
             let countdownText: string | null = null;
-            if (isLive) {
-              // round o günün sonunda bitiyor varsayımı
-              const endAt = new Date(`${day.date}T23:59:59Z`);
+            if (isActiveRound) {
               countdownText = formatRemaining(endAt, now);
             }
 
             return (
               <article key={round.round} className={roundCardClassNames}>
                 {/* ENDED ribbon */}
-                {isEnded && (
+                {isEndedRound && (
                   <span className="round-card__status-ribbon">ENDED</span>
                 )}
 
                 {/* LIVE badge */}
-                {isLive && (
+                {isActiveRound && (
                   <div className="round-card__status-badge">
                     <span className="round-card__live-dot" />
                     LIVE
@@ -295,7 +298,7 @@ export default function Leaderboard() {
                   <div className="round-title">Round {round.round}</div>
 
                   {/* LIVE: kalan süre */}
-                  {isLive && countdownText && (
+                  {isActiveRound && countdownText && (
                     <div className="mt-1 text-[11px] text-slate-300">
                       remaining time{" "}
                       <span className="font-mono text-slate-50">
@@ -305,7 +308,7 @@ export default function Leaderboard() {
                   )}
 
                   {/* ENDED: winner */}
-                  {isEnded && topPrediction && (
+                  {isEndedRound && topPrediction && (
                     <div className="mt-1 flex items-center gap-1 text-[11px]">
                       <span className="text-slate-300 font-medium">
                         WINNER:
@@ -326,7 +329,7 @@ export default function Leaderboard() {
                   {round.predictions.map((p, idx) => (
                     <li key={p.id} className="round-row">
                       {/* ENDED ise sıralama */}
-                      {isEnded && (
+                      {isEndedRound && (
                         <span className="round-rank mr-1">#{idx + 1}</span>
                       )}
 

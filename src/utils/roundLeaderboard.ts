@@ -66,19 +66,35 @@ function getScoreValue(p: LeaderboardPrediction): number {
 export function groupPredictionsByDayAndRound(
   predictions: LeaderboardPrediction[]
 ): DayGroup[] {
-  // Önce address alanını normalize et
+  // Önce address alanını güvenli şekilde normalize et
   const normalizedPredictions = predictions.map((p) => {
-    // Try to get address from various possible fields
-    const addr = 
-      (p as any).address ||
-      (p as any).user ||
-      (p as any).wallet ||
-      "";
-    
+    let addr: string | undefined = p.address;
+
+    const rawUser = (p as any).user;
+    const rawWallet = (p as any).wallet;
+
+    // user string ise (onchain'den gelen adres gibi)
+    if (!addr && typeof rawUser === "string") {
+      addr = rawUser;
+    }
+
+    // user object ise ve içinde address varsa
+    if (!addr && rawUser && typeof rawUser === "object" && "address" in rawUser) {
+      const uAddr = (rawUser as any).address;
+      if (typeof uAddr === "string") {
+        addr = uAddr;
+      }
+    }
+
+    // wallet string ise
+    if (!addr && typeof rawWallet === "string") {
+      addr = rawWallet;
+    }
+
     return {
       ...p,
-      address: addr || (p as any).address, // varsa override et, yoksa bırak
-    } as LeaderboardPrediction & { [key: string]: any };
+      address: addr, // KESİNLİKLE burada shortAddress UYGULAMAYACAĞIZ
+    } as LeaderboardPrediction;
   });
 
   const byDay = new Map<string, LeaderboardPrediction[]>();
