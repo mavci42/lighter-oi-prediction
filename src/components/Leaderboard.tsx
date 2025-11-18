@@ -315,32 +315,19 @@ export default function Leaderboard() {
 
                 {/* PREDICTS LİSTESİ */}
                 <ol className="round-list mt-1">
-                  {/* ENDED: tüm adresleri ve sıralamayı göster */}
-                  {isEnded && round.predictions.map((p, idx) => (
+                  {round.predictions.map((p, idx) => (
                     <li key={p.id} className="round-row">
-                      <span className="round-rank mr-1">#{idx + 1}</span>
+                      {/* ENDED ise sıralama */}
+                      {isEnded && (
+                        <span className="round-rank mr-1">#{idx + 1}</span>
+                      )}
+
+                      {/* HEM LIVE HEM ENDED adres */}
                       <span className="address-label">
-                        {getDisplayAddress ? getDisplayAddress(p) : (p.address ?? "Anon")}
+                        {p.address ? shortAddress(p.address) : "Anon"}
                       </span>
                     </li>
                   ))}
-
-                  {/* LIVE: adresleri sakla, sadece açıklama göster */}
-                  {isLive && (
-                    <>
-                      {round.predictions.map((p, idx) => {
-                        if (idx === 0) {
-                          console.log("[LIVE_PREDICTION_RAW]", p);
-                        }
-                        return null;
-                      })}
-                      <li className="round-row">
-                        <span className="text-[11px] text-slate-300">
-                          Predictions are hidden while the round is live.
-                        </span>
-                      </li>
-                    </>
-                  )}
                 </ol>
               </article>
             );
