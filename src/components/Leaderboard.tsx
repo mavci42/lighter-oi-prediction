@@ -7,12 +7,20 @@ import {
 import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
-function shortAddress(addr?: string | null): string {
-  if (!addr) return "-";
-  const a = addr.trim();
-  if (a.length <= 10) return a;
-  const start = a.slice(0, 3);
-  const end = a.slice(-3);
+function shortAddress(address?: string | null): string {
+  if (!address) return "0x...";
+
+  const addr = address.toString().trim();
+
+  // Çok kısa ise (zaten kısaltılmış veya hatalı), olduğu gibi göster
+  if (addr.length <= 10) {
+    return addr;
+  }
+
+  // Standart kısaltma: ilk 6, son 4 karakter
+  // Örnek: 0x7b06fA1234abcd...ef90 → 0x7b06fA...ef90
+  const start = addr.slice(0, 6);
+  const end = addr.slice(-4);
   return `${start}...${end}`;
 }
 
