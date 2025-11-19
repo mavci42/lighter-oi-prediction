@@ -7,18 +7,27 @@ import {
 import { fetchOnchainPredictions } from "../onchain/fetchOnchainLeaderboard";
 import "./Leaderboard.css";
 
-function shortAddress(address?: string | null): string {
-  if (!address) return "0x...";
+function shortAddress(
+  address?: string | null,
+  fallback?: string | null
+): string {
+  // Önce address ya da fallback var mı kontrol et
+  let addr = address || fallback;
 
-  const addr = address.toString().trim();
+  if (!addr) {
+    // Hiçbir bilgi yoksa ancak o zaman placeholder dön
+    return "0x…";
+  }
 
-  // Çok kısa ise (zaten kısaltılmış veya hatalı), olduğu gibi göster
+  addr = addr.toString().trim();
+
+  // Çok kısa ise (zaten kısaltılmış veya hatalı) olduğu gibi göster
   if (addr.length <= 10) {
     return addr;
   }
 
-  // Standart kısaltma: ilk 6, son 4 karakter
-  // Örnek: 0x7b06fA1234abcd...ef90 → 0x7b06fA...ef90
+  // Standart kısaltma: ilk 6 + son 4 karakter
+  // Ör: 0x7b06FA1234abcd…ef90 -> 0x7b06FA…ef90
   const start = addr.slice(0, 6);
   const end = addr.slice(-4);
   return `${start}...${end}`;
@@ -55,7 +64,12 @@ function getDisplayAddress(p: any): string {
 
   if (!candidate) return "Anon";
 
-  return shortAddress(candidate);
+  return shortAddress(
+    candidate,
+    typeof p.user === "string"
+      ? p.user
+      : (p.user as any)?.address
+  );
 }
 
 function formatRemaining(endAt: Date, nowMs: number): string {
@@ -338,7 +352,12 @@ export default function Leaderboard() {
 
                       {/* HEM LIVE HEM ENDED adres */}
                       <span className="address-label">
-                        {p.address ? shortAddress(p.address) : "Anon"}
+                        {p.address ? shortAddress(
+                          p.address,
+                          typeof p.user === "string"
+                            ? p.user
+                            : (p.user as any)?.address
+                        ) : "Anon"}
                       </span>
                     </li>
                   ))}
