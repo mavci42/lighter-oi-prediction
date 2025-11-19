@@ -11,12 +11,12 @@ function shortAddress(
   address?: string | null,
   fallback?: string | null
 ): string {
-  // Önce address ya da fallback var mı kontrol et
+  // Önce address ya da fallback’ten birini al
   let addr = address || fallback;
 
+  // Hiç veri yoksa ancak o zaman placeholder döndür
   if (!addr) {
-    // Hiçbir bilgi yoksa ancak o zaman placeholder dön
-    return "0x…";
+    return "0x...";
   }
 
   addr = addr.toString().trim();
@@ -27,7 +27,6 @@ function shortAddress(
   }
 
   // Standart kısaltma: ilk 6 + son 4 karakter
-  // Ör: 0x7b06FA1234abcd…ef90 -> 0x7b06FA…ef90
   const start = addr.slice(0, 6);
   const end = addr.slice(-4);
   return `${start}...${end}`;
@@ -341,7 +340,7 @@ export default function Leaderboard() {
                 {/* PREDICTS BAŞLIĞI */}
                 <div className="mt-3 text-[11px] text-slate-300">Predicts</div>
 
-                {/* PREDICTS LİSTESİ */}
+                                {/* PREDICTS LİSTESİ */}
                 <ol className="round-list mt-1">
                   {round.predictions.map((p, idx) => (
                     <li key={p.id} className="round-row">
@@ -352,12 +351,7 @@ export default function Leaderboard() {
 
                       {/* HEM LIVE HEM ENDED adres */}
                       <span className="address-label">
-                        {p.address ? shortAddress(
-                          p.address,
-                          typeof p.user === "string"
-                            ? p.user
-                            : (p.user as any)?.address
-                        ) : "Anon"}
+                        {getDisplayAddress(p)}
                       </span>
                     </li>
                   ))}
